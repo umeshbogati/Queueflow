@@ -15,9 +15,10 @@ const router = Router();
 router.get("/", getAllBranchesController);
 router.get("/:id", getBranchByIdController);
 
-// POST, PUT, DELETE branches (Protected with Auth + Admin)
+// POST, PUT, PATCH, DELETE branches (Protected with Auth + Admin)
 router.post("/", protect, adminOnly, createBranchController);
 router.put("/:id", protect, adminOnly, updateBranchController);
+router.patch("/:id", protect, adminOnly, updateBranchController);
 router.delete("/:id", protect, adminOnly, deleteBranchController);
 
 export default router;

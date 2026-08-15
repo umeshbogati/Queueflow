@@ -22,14 +22,14 @@ export const protect = (
             });
             return;
         }
-        if (!authorization.startsWith("Bearer ")) {
+        if (!/^Bearer\s+/i.test(authorization)) {
             res.status(401).json({
                 success: false,
                 message: "Invalid authorization format",
             });
             return;
         }
-        const token = authorization.split(" ")[1];
+        const token = authorization.split(/\s+/)[1];
         if (!token) {
             res.status(401).json({ success: false, message: "Token not provided" });
             return;

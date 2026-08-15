@@ -60,7 +60,7 @@ export const getBranchByIdController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const id = (req.params.id as string).trim();
 
         const branch = await getBranchById(id);
 
@@ -90,7 +90,7 @@ export const updateBranchController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const id = (req.params.id as string).trim();
 
         const {
             name,
@@ -124,7 +124,7 @@ export const deleteBranchController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = req.params.id as string;
+        const id = (req.params.id as string).trim();
 
         await deleteBranch(id);
 
