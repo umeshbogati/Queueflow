@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Branch from "../models/Branch.js";
 
 export const createBranch = async (
@@ -5,14 +6,14 @@ export const createBranch = async (
     location: string
 ) => {
     const existingBranch = await Branch.findOne({
-        name,
+        name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
     });
     if (existingBranch) {
-        throw new Error("Branch already exists");
+        throw new Error("Branch with this name already exists");
     }
     const branch = await Branch.create({
-        name,
-        location,
+        name: name.trim(),
+        location: location.trim(),
         isActive: true,
     });
     return branch;
@@ -25,6 +26,10 @@ export const getAllBranches = async () => {
 };
 
 export const getBranchById = async (id: string) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid branch ID");
+    }
+
     const branch = await Branch.findById(id);
     if (!branch) {
         throw new Error("Branch not found");
@@ -38,16 +43,28 @@ export const updateBranch = async (
     location?: string,
     isActive?: boolean
 ) => {
-    const branch = await Branch.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid branch ID");
+    }
 
+    const branch = await Branch.findById(id);
     if (!branch) {
         throw new Error("Branch not found");
     }
+
     if (name !== undefined) {
-        branch.name = name;
+        const trimmedName = name.trim();
+        const duplicate = await Branch.findOne({
+            _id: { $ne: id },
+            name: { $regex: new RegExp(`^${trimmedName}$`, "i") },
+        });
+        if (duplicate) {
+            throw new Error("Branch with this name already exists");
+        }
+        branch.name = trimmedName;
     }
     if (location !== undefined) {
-        branch.location = location;
+        branch.location = location.trim();
     }
     if (isActive !== undefined) {
         branch.isActive = isActive;
@@ -58,8 +75,11 @@ export const updateBranch = async (
 };
 
 export const deleteBranch = async (id: string) => {
-    const branch = await Branch.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid branch ID");
+    }
 
+    const branch = await Branch.findById(id);
     if (!branch) {
         throw new Error("Branch not found");
     }

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-
+import mongoose from "mongoose";
 import {
     createBranch,
     getAllBranches,
@@ -7,6 +7,10 @@ import {
     updateBranch,
     deleteBranch,
 } from "../services/branchService.js";
+import {
+    createBranchSchema,
+    updateBranchSchema,
+} from "../validators/branchValidator.js";
 
 // CREATE BRANCH
 export const createBranchController = async (
@@ -14,12 +18,19 @@ export const createBranchController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const { name, location } = req.body;
+        const validation = createBranchSchema.safeParse(req.body);
+        if (!validation.success) {
+            res.status(400).json({
+                success: false,
+                message: "Validation failed",
+                errors: validation.error.flatten(),
+            });
+            return;
+        }
 
-        const branch = await createBranch(
-            name,
-            location
-        );
+        const { name, location } = validation.data;
+
+        const branch = await createBranch(name, location);
 
         res.status(201).json({
             success: true,
@@ -62,22 +73,23 @@ export const getBranchByIdController = async (
     try {
         const id = (req.params.id as string).trim();
 
-        const branch = await getBranchById(id);
-
-        if (!branch) {
-            res.status(404).json({
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({
                 success: false,
-                message: "Branch not found",
+                message: "Invalid branch ID",
             });
             return;
         }
+
+        const branch = await getBranchById(id);
 
         res.status(200).json({
             success: true,
             data: branch,
         });
     } catch (error: any) {
-        res.status(400).json({
+        const status = error.message === "Branch not found" ? 404 : 400;
+        res.status(status).json({
             success: false,
             message: error.message || "Failed to get branch",
         });
@@ -92,18 +104,27 @@ export const updateBranchController = async (
     try {
         const id = (req.params.id as string).trim();
 
-        const {
-            name,
-            location,
-            isActive,
-        } = req.body;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid branch ID",
+            });
+            return;
+        }
 
-        const branch = await updateBranch(
-            id,
-            name,
-            location,
-            isActive
-        );
+        const validation = updateBranchSchema.safeParse(req.body);
+        if (!validation.success) {
+            res.status(400).json({
+                success: false,
+                message: "Validation failed",
+                errors: validation.error.flatten(),
+            });
+            return;
+        }
+
+        const { name, location, isActive } = validation.data;
+
+        const branch = await updateBranch(id, name, location, isActive);
 
         res.status(200).json({
             success: true,
@@ -111,7 +132,8 @@ export const updateBranchController = async (
             data: branch,
         });
     } catch (error: any) {
-        res.status(400).json({
+        const status = error.message === "Branch not found" ? 404 : 400;
+        res.status(status).json({
             success: false,
             message: error.message || "Failed to update branch",
         });
@@ -126,14 +148,23 @@ export const deleteBranchController = async (
     try {
         const id = (req.params.id as string).trim();
 
-        await deleteBranch(id);
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid branch ID",
+            });
+            return;
+        }
+
+        const result = await deleteBranch(id);
 
         res.status(200).json({
             success: true,
-            message: "Branch deleted successfully",
+            message: result.message,
         });
     } catch (error: any) {
-        res.status(400).json({
+        const status = error.message === "Branch not found" ? 404 : 400;
+        res.status(status).json({
             success: false,
             message: error.message || "Failed to delete branch",
         });

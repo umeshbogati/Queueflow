@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import {
     createDepartment,
     getDepartments,
@@ -27,11 +28,12 @@ export const createDepartmentController = async (
             return;
         }
 
-        const { name, branch, description, isActive } = validation.data;
+        const { name, branch, prefix, description, isActive } = validation.data;
 
         const department = await createDepartment(
             name,
             branch,
+            prefix,
             description,
             isActive
         );
@@ -49,20 +51,21 @@ export const createDepartmentController = async (
     }
 };
 
-// GET ALL DEPARTMENTS
+// GET ALL DEPARTMENTS (Supports optional ?branch=branchId filter)
 export const getAllDepartmentsController = async (
-    _req: Request,
+    req: Request,
     res: Response
 ): Promise<void> => {
     try {
-        const departments = await getDepartments();
+        const branchId = typeof req.query.branch === "string" ? req.query.branch.trim() : undefined;
+        const departments = await getDepartments(branchId);
 
         res.status(200).json({
             success: true,
             data: departments,
         });
     } catch (error: any) {
-        res.status(500).json({
+        res.status(400).json({
             success: false,
             message: error.message || "Failed to get departments",
         });
@@ -75,7 +78,15 @@ export const getDepartmentByIdController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = (req.params.id as string).trim();
+        const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid department ID",
+            });
+            return;
+        }
 
         const department = await getDepartmentById(id);
 
@@ -98,7 +109,15 @@ export const updateDepartmentController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = (req.params.id as string).trim();
+        const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid department ID",
+            });
+            return;
+        }
 
         const validation = updateDepartmentSchema.safeParse(req.body);
         if (!validation.success) {
@@ -132,7 +151,15 @@ export const deleteDepartmentController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = (req.params.id as string).trim();
+        const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid department ID",
+            });
+            return;
+        }
 
         const result = await deleteDepartment(id);
 

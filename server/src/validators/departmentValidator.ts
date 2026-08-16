@@ -6,6 +6,13 @@ export const createDepartmentSchema = z.object({
         .min(2, "Department name must be at least 2 characters")
         .max(100, "Department name cannot exceed 100 characters")
         .trim(),
+    prefix: z
+        .string()
+        .min(1, "Prefix must be at least 1 character")
+        .max(5, "Prefix cannot exceed 5 characters")
+        .trim()
+        .toUpperCase()
+        .optional(),
     branch: z
         .string()
         .min(1, "Branch ID is required")
@@ -24,6 +31,13 @@ export const updateDepartmentSchema = z.object({
         .min(2, "Department name must be at least 2 characters")
         .max(100, "Department name cannot exceed 100 characters")
         .trim()
+        .optional(),
+    prefix: z
+        .string()
+        .min(1, "Prefix must be at least 1 character")
+        .max(5, "Prefix cannot exceed 5 characters")
+        .trim()
+        .toUpperCase()
         .optional(),
     branch: z
         .string()
