@@ -6,7 +6,7 @@ import AuthLayout from "../components/layout/AuthLayout";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
-import BranchesPage from "../pages/BranchesPage";
+import BranchesPage from "../pages/branches/BranchesPage";
 import DepartmentsPage from "../pages/DepartmentsPage";
 import QueuePage from "../pages/QueuePage";
 import NotFoundPage from "../pages/NotFoundPage";
