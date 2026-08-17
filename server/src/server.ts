@@ -6,17 +6,14 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = async (): Promise<void> => {
-    try {
-        await connectDB();
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-        });
-    } catch (error) {
-        console.error("Failed to start server:", error);
-        process.exit(1);
-    }
+//  Connect to MongoDB first
+const startServer = async () => {
+    await connectDB();
+
+    //  Start listening for requests only after DB is ready
+    app.listen(PORT, () => {
+        console.log(` Server is running on port ${PORT}`);
+    });
 };
 
 startServer();
-

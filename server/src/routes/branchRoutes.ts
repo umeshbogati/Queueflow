@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import {
     createBranchController,
     getAllBranchesController,
@@ -6,19 +7,63 @@ import {
     updateBranchController,
     deleteBranchController,
 } from "../controllers/branchController.js";
+
 import { protect } from "../middleware/authMiddleware.js";
 import { adminOnly } from "../middleware/adminMiddleware.js";
 
-const router = Router();
+import {
+    createBranchSchema,
+    updateBranchSchema,
+} from "../validators/branchValidator.js";
 
-// GET all branches & GET branch by ID
-router.get("/", getAllBranchesController);
-router.get("/:id", getBranchByIdController);
+import { validate } from "../middleware/validateMiddleware.js";
 
-// POST, PUT, PATCH, DELETE branches (Protected with Auth + Admin)
-router.post("/", protect, adminOnly, createBranchController);
-router.put("/:id", protect, adminOnly, updateBranchController);
-router.patch("/:id", protect, adminOnly, updateBranchController);
-router.delete("/:id", protect, adminOnly, deleteBranchController);
+const router: Router = Router();
+
+
+// CREATE
+router.post(
+    "/",
+    protect,
+    adminOnly,
+    validate(createBranchSchema),
+    createBranchController
+);
+
+
+// GET ALL
+router.get(
+    "/",
+    protect,
+    getAllBranchesController
+);
+
+
+// GET ONE
+router.get(
+    "/:id",
+    protect,
+    getBranchByIdController
+);
+
+
+// UPDATE
+router.put(
+    "/:id",
+    protect,
+    adminOnly,
+    validate(updateBranchSchema),
+    updateBranchController
+);
+
+
+// DELETE
+router.delete(
+    "/:id",
+    protect,
+    adminOnly,
+    deleteBranchController
+);
+
 
 export default router;

@@ -18,14 +18,15 @@ export const createDepartment = async (
         throw new Error("Branch not found");
     }
 
-    const trimmedName = name.trim();
     const existingDepartment = await Department.findOne({
-        name: { $regex: new RegExp(`^${trimmedName}$`, "i") },
+        name,
         branch,
     });
 
     if (existingDepartment) {
-        throw new Error("Department already exists in this branch");
+        throw new Error(
+            "Department already exists in this branch"
+        );
     }
 
     const departmentData: {
@@ -35,35 +36,27 @@ export const createDepartment = async (
         description?: string;
         isActive?: boolean;
     } = {
-        name: trimmedName,
+        name,
         branch,
     };
 
-    if (prefix !== undefined && prefix.trim() !== "") {
-        departmentData.prefix = prefix.trim().toUpperCase();
+    if (prefix !== undefined) {
+        departmentData.prefix = prefix;
     }
     if (description !== undefined) {
-        departmentData.description = description.trim();
+        departmentData.description = description;
     }
     if (isActive !== undefined) {
         departmentData.isActive = isActive;
     }
 
     const department = await Department.create(departmentData);
+
     return department;
 };
 
-export const getDepartments = async (branchId?: string) => {
-    const filter: Record<string, any> = {};
-
-    if (branchId) {
-        if (!mongoose.Types.ObjectId.isValid(branchId)) {
-            throw new Error("Invalid branch ID");
-        }
-        filter.branch = branchId;
-    }
-
-    return await Department.find(filter)
+export const getDepartments = async () => {
+    return await Department.find()
         .populate("branch")
         .sort({ createdAt: -1 });
 };
@@ -73,7 +66,8 @@ export const getDepartmentById = async (id: string) => {
         throw new Error("Invalid department ID");
     }
 
-    const department = await Department.findById(id).populate("branch");
+    const department = await Department.findById(id)
+        .populate("branch");
 
     if (!department) {
         throw new Error("Department not found");
@@ -103,9 +97,6 @@ export const updateDepartment = async (
     }
 
     if (data.branch) {
-        if (!mongoose.Types.ObjectId.isValid(data.branch)) {
-            throw new Error("Invalid branch ID");
-        }
         const branchExists = await Branch.findById(data.branch);
 
         if (!branchExists) {
@@ -113,25 +104,24 @@ export const updateDepartment = async (
         }
     }
 
-    const targetBranch = data.branch ?? department.branch.toString();
-    const targetName = data.name ? data.name.trim() : department.name;
-
     if (data.name || data.branch) {
         const duplicateDepartment = await Department.findOne({
             _id: { $ne: id },
-            name: { $regex: new RegExp(`^${targetName}$`, "i") },
-            branch: targetBranch,
+            name: data.name ?? department.name,
+            branch: data.branch ?? department.branch,
         });
 
         if (duplicateDepartment) {
-            throw new Error("Department already exists in this branch");
+            throw new Error(
+                "Department already exists in this branch"
+            );
         }
     }
 
-    if (data.name !== undefined) department.name = targetName;
-    if (data.prefix !== undefined) department.prefix = data.prefix.trim().toUpperCase();
+    if (data.name !== undefined) department.name = data.name;
+    if (data.prefix !== undefined) department.prefix = data.prefix;
     if (data.branch !== undefined) department.branch = new mongoose.Types.ObjectId(data.branch);
-    if (data.description !== undefined) department.description = data.description.trim();
+    if (data.description !== undefined) department.description = data.description;
     if (data.isActive !== undefined) department.isActive = data.isActive;
 
     return await department.save();

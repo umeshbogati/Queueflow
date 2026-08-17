@@ -1,15 +1,19 @@
 import { z } from "zod";
+import Branch from "../models/Branch.js";
 
 export const createQueueSchema = z.object({
-    branch: z.string().min(1, "Branch ID is required").trim(),
-    department: z.string().min(1, "Department ID is required").trim(),
+    branch: z.string()
+    .min(1, "Branch ID is required"),
+
+    department: z.string()
+    .min(1, "Department ID is required"),
 });
 
 export const updateQueueStatusSchema = z.object({
-    status: z.enum(["called", "serving", "completed", "cancelled"], {
-        message: "Status must be called, serving, completed, or cancelled",
-    }),
+    status: z.enum([
+        "called",
+        "serving",
+        "completed",
+        "cancelled",
+    ]),
 });
-
-export type CreateQueueInput = z.infer<typeof createQueueSchema>;
-export type UpdateQueueStatusInput = z.infer<typeof updateQueueStatusSchema>;

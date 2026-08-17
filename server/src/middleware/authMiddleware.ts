@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from "express";
 import jwt from "jsonwebtoken";
-import type { AuthenticatedRequest }  from "../types/auth.js";
+import type { AuthenticatedRequest } from "../types/auth.js";
 
 interface JwtPayload {
     id: string;
@@ -11,7 +11,7 @@ export const protect = (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
-) => {
+): void => {
     try {
         const authorization = req.headers.authorization;
 
@@ -22,20 +22,25 @@ export const protect = (
             });
             return;
         }
-        if (!/^Bearer\s+/i.test(authorization)) {
+
+        const authHeader = authorization.trim();
+
+        // Accepts both 'Bearer <token>' and 'bearer <token>' with any whitespace
+        if (!/^Bearer\s+/i.test(authHeader)) {
             res.status(401).json({
                 success: false,
-                message: "Invalid authorization format",
+                message: "Invalid authorization format. Expected 'Bearer <token>'",
             });
             return;
         }
-        const token = authorization.split(/\s+/)[1];
+
+        const token = authHeader.split(/\s+/)[1];
         if (!token) {
             res.status(401).json({ success: false, message: "Token not provided" });
             return;
         }
-        const secret = process.env.JWT_SECRET;
 
+        const secret = process.env.JWT_SECRET;
         if (!secret) {
             res.status(500).json({
                 success: false,
@@ -51,11 +56,11 @@ export const protect = (
             role: decoded.role,
         };
 
-    next();
-  } catch {
-    res.status(401).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
+        next();
+    } catch {
+        res.status(401).json({
+            success: false,
+            message: "Invalid or expired token",
+        });
     }
 };

@@ -1,19 +1,30 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, mongo, Schema, Types } from "mongoose";
+import { required } from "zod/mini";
+import Department from "./Department.js";
 
-export type QueueStatus = "waiting" | "called" | "serving" | "completed" | "cancelled";
+export type QueueStatus = 
+| "waiting"
+| "called"
+| "serving"
+| "completed"
+| "cancelled";
 
 export interface IQueue extends Document {
     ticketNumber: number;
     displayNumber: string;
-    branch: mongoose.Types.ObjectId;
-    department: mongoose.Types.ObjectId;
-    customer: mongoose.Types.ObjectId;
+
+    branch: Types.ObjectId;
+    department: Types.ObjectId;
+    customer: Types.ObjectId;
+
     status: QueueStatus;
     date: string;
+
     calledAt?: Date;
     servingAt?: Date;
     completedAt?: Date;
     cancelledAt?: Date;
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -24,49 +35,64 @@ const queueSchema = new Schema<IQueue>(
             type: Number,
             required: true,
         },
+
         displayNumber: {
             type: String,
             required: true,
             trim: true,
         },
+
         branch: {
             type: Schema.Types.ObjectId,
             ref: "Branch",
             required: true,
             index: true,
         },
+
         department: {
             type: Schema.Types.ObjectId,
             ref: "Department",
             required: true,
             index: true,
         },
+
         customer: {
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
             index: true,
         },
+
         status: {
             type: String,
-            enum: ["waiting", "called", "serving", "completed", "cancelled"],
+            enum: [
+                "waiting",
+                "called",
+                "serving",
+                "completed",
+                "cancelled",
+            ],
             default: "waiting",
             index: true,
         },
+
         date: {
             type: String,
             required: true,
             index: true,
         },
+
         calledAt: {
             type: Date,
         },
+
         servingAt: {
             type: Date,
         },
         completedAt: {
             type: Date,
         },
+
         cancelledAt: {
             type: Date,
         },
@@ -75,8 +101,12 @@ const queueSchema = new Schema<IQueue>(
         timestamps: true,
     }
 );
-
-queueSchema.index({ department: 1, date: 1, ticketNumber: 1 }, { unique: true });
+// prevent duplicate ticket number for the same department on the same date
+queueSchema.index({
+    Department: 1,
+    date: 1,
+    ticketNumber: 1,
+}, {unique:true});
 
 const Queue = mongoose.model<IQueue>("Queue", queueSchema);
 

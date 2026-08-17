@@ -1,4 +1,4 @@
-import type { Response, NextFunction } from "express";
+import type { NextFunction, Response } from "express";
 import type { AuthenticatedRequest } from "../types/auth.js";
 
 export const adminOnly = (
@@ -6,12 +6,22 @@ export const adminOnly = (
     res: Response,
     next: NextFunction
 ): void => {
-    if (!req.user || req.user.role?.toLowerCase() !== "admin") {
-        res.status(403).json({
+    if (!req.user) {
+        res.status(401).json({
             success: false,
-            message: "Access denied. Admins only.",
+            message: "Authentication required",
         });
         return;
     }
+
+    // Use .toLowerCase() so both "Admin" and "admin" work
+    if (req.user.role.toLowerCase() !== "admin") {
+        res.status(403).json({
+            success: false,
+            message: "Admin access required",
+        });
+        return;
+    }
+
     next();
 };

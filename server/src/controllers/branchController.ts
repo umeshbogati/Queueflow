@@ -71,7 +71,7 @@ export const getBranchByIdController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = (req.params.id as string).trim();
+        const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             res.status(400).json({
@@ -102,7 +102,7 @@ export const updateBranchController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = (req.params.id as string).trim();
+        const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             res.status(400).json({
@@ -146,7 +146,7 @@ export const deleteBranchController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const id = (req.params.id as string).trim();
+        const id = typeof req.params.id === "string" ? req.params.id.trim() : "";
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             res.status(400).json({
