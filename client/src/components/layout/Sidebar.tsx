@@ -1,34 +1,38 @@
 import { NavLink } from "react-router-dom";
+import { getUserRole } from "../../utils/auth";
 
 const Sidebar = () => {
-  const navigationItems = [
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-    },
-    {
-      name: "Branches",
-      path: "/branches",
-    },
-    {
-      name: "Departments",
-      path: "/departments",
-    },
-    {
-      name: "Queue",
-      path: "/queue",
-    },
+  const role = getUserRole();
+  const isAdmin = role?.toLowerCase() === "admin" || role?.toLowerCase() === "super_admin";
+
+  const userItems = [
+    { name: "Dashboard", path: "/dashboard" },
+    { name: "Join Queue", path: "/queue" },
+    { name: "Queue Position", path: "/queue-position" },
+    { name: "Departments", path: "/departments" },
   ];
+
+  const adminItems = [
+    { name: "Admin Dashboard", path: "/admin" },
+    { name: "Branches", path: "/branches" },
+    { name: "Departments", path: "/departments" },
+    { name: "All Queues", path: "/queues" },
+    { name: "Call Next", path: "/call-next" },
+    { name: "Counter Staff", path: "/counter" },
+    { name: "Statistics", path: "/statistics" },
+  ];
+
+  const items = isAdmin ? adminItems : userItems;
 
   return (
     <aside className="hidden min-h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white md:block">
       <div className="p-4">
         <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Main Menu
+          {isAdmin ? "Admin Menu" : "Main Menu"}
         </p>
 
         <nav className="space-y-1">
-          {navigationItems.map((item) => (
+          {items.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}

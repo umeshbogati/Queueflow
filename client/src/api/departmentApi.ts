@@ -3,7 +3,13 @@ import api from "./axios";
 export interface Department {
   _id: string;
   name: string;
-  branchId: string;
+  branchId?: string;
+  branch: {
+    _id: string;
+    name: string;
+  };
+  description?: string;
+  prefix?: string;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -11,12 +17,12 @@ export interface Department {
 
 export interface CreateDepartmentData {
   name: string;
-  branchId: string;
+  branch: string;
 }
 
 export interface UpdateDepartmentData {
   name?: string;
-  branchId?: string;
+  branch?: string;
   isActive?: boolean;
 }
 

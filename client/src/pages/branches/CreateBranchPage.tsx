@@ -1,4 +1,4 @@
-import  {  useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,11 +11,8 @@ const CreateBranchPage = () => {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
@@ -23,90 +20,161 @@ const CreateBranchPage = () => {
     event.preventDefault();
 
     setError("");
+
+    const trimmedName = name.trim();
+    const trimmedLocation = location.trim();
+
+    if (!trimmedName) {
+      setError("Branch name is required.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       await createBranch({
-        name,
-        location,
+        name: trimmedName,
+        location: trimmedLocation,
       });
 
       navigate("/branches");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         "Failed to create branch:",
         error
       );
 
-      setError(
-        error.response?.data?.message ||
-          "Failed to create branch."
-      );
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error
+      ) {
+        const axiosError = error as {
+          response?: {
+            data?: {
+              message?: string;
+            };
+          };
+        };
+
+        setError(
+          axiosError.response?.data?.message ||
+            "Failed to create branch."
+        );
+      } else if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("Failed to create branch.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="mx-auto max-w-xl rounded-xl bg-white p-6 shadow">
-        <h1 className="mb-6 text-2xl font-bold">
-          Create Branch
-        </h1>
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="mx-auto max-w-xl">
 
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-700">
-            {error}
-          </div>
-        )}
+        <div className="rounded-xl bg-white p-6 shadow">
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
-          <div>
-            <label className="mb-1 block font-medium">
-              Branch Name
-            </label>
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Create Branch
+            </h1>
 
-            <input
-              type="text"
-              value={name}
-              onChange={(event) =>
-                setName(event.target.value)
-              }
-              className="w-full rounded-lg border px-4 py-2"
-              placeholder="Kathmandu Branch"
-              required
-            />
+            <p className="mt-1 text-sm text-gray-500">
+              Add a new branch to Queueflow.
+            </p>
           </div>
 
-          <div>
-            <label className="mb-1 block font-medium">
-              Location
-            </label>
+          {/* Error */}
+          {error && (
+            <div
+              role="alert"
+              className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700"
+            >
+              {error}
+            </div>
+          )}
 
-            <input
-              type="text"
-              value={location}
-              onChange={(event) =>
-                setLocation(event.target.value)
-              }
-              className="w-full rounded-lg border px-4 py-2"
-              placeholder="Kathmandu"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-white disabled:opacity-50"
+          {/* Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
           >
-            {loading
-              ? "Creating..."
-              : "Create Branch"}
-          </button>
-        </form>
+
+            {/* Branch Name */}
+            <div>
+              <label
+                htmlFor="branch-name"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
+                Branch Name
+              </label>
+
+              <input
+                id="branch-name"
+                type="text"
+                value={name}
+                onChange={(event) =>
+                  setName(event.target.value)
+                }
+                placeholder="Kathmandu Branch"
+                required
+                disabled={loading}
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+              />
+            </div>
+
+            {/* Location */}
+            <div>
+              <label
+                htmlFor="branch-location"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
+                Location
+              </label>
+
+              <input
+                id="branch-location"
+                type="text"
+                value={location}
+                onChange={(event) =>
+                  setLocation(event.target.value)
+                }
+                placeholder="Kathmandu"
+                disabled={loading}
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+
+              <button
+                type="button"
+                onClick={() => navigate("/branches")}
+                disabled={loading}
+                className="rounded-lg border border-gray-300 px-5 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading
+                  ? "Creating..."
+                  : "Create Branch"}
+              </button>
+
+            </div>
+
+          </form>
+        </div>
       </div>
     </div>
   );

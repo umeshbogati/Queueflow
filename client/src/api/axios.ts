@@ -1,18 +1,33 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:5000/api",
+
   headers: {
     "Content-Type": "application/json",
   },
 });
 
+
+// ==================================
+// REQUEST INTERCEPTOR
+// ==================================
+
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("token");
+
+    console.log(
+      "JWT token:",
+      token
+    );
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization =
+        `Bearer ${token}`;
     }
 
     return config;
@@ -22,18 +37,26 @@ api.interceptors.request.use(
   }
 );
 
+
+// ==================================
+// RESPONSE INTERCEPTOR
+// ==================================
+
 api.interceptors.response.use(
   (response) => {
     return response;
   },
+
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      console.error(
+        "Unauthorized request."
+      );
     }
 
     return Promise.reject(error);
   }
 );
+
 
 export default api;

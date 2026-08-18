@@ -1,8 +1,8 @@
 import api from "./axios";
 
 export interface CreateQueueData {
-  branchId: string;
-  departmentId: string;
+  branch: string;
+  department: string;
 }
 
 export const getQueues = async () => {
@@ -27,7 +27,7 @@ export const updateQueue = async (
   id: string,
   data: Record<string, unknown>
 ) => {
-  const response = await api.put(`/queues/${id}`, data);
+  const response = await api.patch(`/queues/${id}/status`, data);
 
   return response.data;
 };
