@@ -1,43 +1,57 @@
 import { z } from "zod";
 
 export const createDepartmentSchema = z.object({
-    name: z
-        .string()
-        .min(2, "Department name must be at least 2 characters")
-        .max(100, "Department name must not exceed 100 characters"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Department name is required"),
 
-    branch: z
-        .string()
-        .min(1, "Branch ID is required"),
+  branch: z
+    .string()
+    .trim()
+    .min(1, "Branch is required"),
 
-    description: z
-        .string()
-        .max(500, "Description must not exceed 500 characters")
-        .optional(),
+  prefix: z
+    .string()
+    .trim()
+    .max(10, "Prefix must be 10 characters or less")
+    .optional(),
 
-    isActive: z
-        .boolean()
-        .optional(),
+  description: z
+    .string()
+    .trim()
+    .optional(),
+
+  isActive: z
+    .boolean()
+    .optional(),
 });
 
 export const updateDepartmentSchema = z.object({
-    name: z
-        .string()
-        .min(2, "Department name must be at least 2 characters")
-        .max(100, "Department name must not exceed 100 characters")
-        .optional(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Department name is required")
+    .optional(),
 
-    branch: z
-        .string()
-        .min(1, "Branch ID is required")
-        .optional(),
+  branch: z
+    .string()
+    .trim()
+    .min(1, "Branch is required")
+    .optional(),
 
-    description: z
-        .string()
-        .max(500, "Description must not exceed 500 characters")
-        .optional(),
+  prefix: z
+    .string()
+    .trim()
+    .max(10, "Prefix must be 10 characters or less")
+    .optional(),
 
-    isActive: z
-        .boolean()
-        .optional(),
+  description: z
+    .string()
+    .trim()
+    .optional(),
+
+  isActive: z
+    .boolean()
+    .optional(),
 });

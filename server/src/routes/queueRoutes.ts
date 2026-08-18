@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createQueueController, getMyQueuesController, getQueueByIdController, updateQueueStatusController } from "../controllers/queueController.js";
+import { createQueueController, getAllQueuesController, getMyQueuesController, getQueueByIdController, updateQueueStatusController, callNextController, getQueueStatsController } from "../controllers/queueController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { adminOnly } from "../middleware/adminMiddleware.js";
 import { createQueueSchema, updateQueueStatusSchema } from "../validators/queueValidator.js";
@@ -7,8 +7,12 @@ import { validate } from "../middleware/validateMiddleware.js";
 
 const router = Router();
 
-router.post("/", protect, validate(createQueueSchema), createQueueController);
+router.get("/", protect, getAllQueuesController);
+router.get("/stats", protect, adminOnly, getQueueStatsController);
 router.get("/my", protect, getMyQueuesController);
+router.get("/:id", protect, getQueueByIdController);
+router.post("/", protect, validate(createQueueSchema), createQueueController);
+router.patch("/call-next", protect, adminOnly, callNextController);
 router.patch("/:id/status", protect, adminOnly, validate(updateQueueStatusSchema), updateQueueStatusController);
 
 export default router;

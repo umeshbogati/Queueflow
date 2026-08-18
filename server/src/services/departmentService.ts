@@ -55,8 +55,12 @@ export const createDepartment = async (
     return department;
 };
 
-export const getDepartments = async () => {
-    return await Department.find()
+export const getDepartments = async (branchId?: string) => {
+    const filter: Record<string, unknown> = {};
+    if (branchId) {
+        filter.branch = branchId;
+    }
+    return await Department.find(filter)
         .populate("branch")
         .sort({ createdAt: -1 });
 };

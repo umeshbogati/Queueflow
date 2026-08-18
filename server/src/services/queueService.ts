@@ -47,6 +47,10 @@ export const createQueue = async ({
     }
 
     if (departmentData.branch.toString() !== branch) {
+        console.error("Branch mismatch:", {
+            deptBranch: departmentData.branch.toString(),
+            reqBranch: branch,
+        });
         throw new Error("Department does not belong to this branch");
     }
 
@@ -77,6 +81,13 @@ export const createQueue = async ({
     return queue;
 };
 
+export const getAllQueues = async () => {
+    return await Queue.find()
+        .populate("branch", "name location")
+        .populate("department", "name prefix")
+        .sort({ createdAt: -1 });
+};
+
 export const getMyQueues = async (customerId: string) => {
     if (!mongoose.Types.ObjectId.isValid(customerId)) {
         throw new Error("Invalid customer ID");
@@ -105,6 +116,46 @@ export const getQueueById = async (queueId: string) => {
     }
 
     return queue;
+};
+
+export const callNextQueue = async () => {
+    const queue = await Queue.findOne({ status: "waiting" })
+        .sort({ ticketNumber: 1 })
+        .populate("branch", "name location")
+        .populate("department", "name prefix");
+
+    if (!queue) {
+        throw new Error("No waiting queues");
+    }
+
+    queue.status = "called";
+    queue.calledAt = new Date();
+    await queue.save();
+
+    return queue;
+};
+
+export interface QueueStats {
+    total: number;
+    waiting: number;
+    called: number;
+    serving: number;
+    completed: number;
+    cancelled: number;
+}
+
+export const getQueueStats = async (): Promise<QueueStats> => {
+    const [total, waiting, called, serving, completed, cancelled] =
+        await Promise.all([
+            Queue.countDocuments(),
+            Queue.countDocuments({ status: "waiting" }),
+            Queue.countDocuments({ status: "called" }),
+            Queue.countDocuments({ status: "serving" }),
+            Queue.countDocuments({ status: "completed" }),
+            Queue.countDocuments({ status: "cancelled" }),
+        ]);
+
+    return { total, waiting, called, serving, completed, cancelled };
 };
 
 export const updateQueueStatus = async (

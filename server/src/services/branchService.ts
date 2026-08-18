@@ -68,5 +68,5 @@ export const deleteBranch = async (id: string) => {
 
     await Branch.findByIdAndDelete(id);
 
-    return branch;
+    return { message: "Branch deleted successfully" };
 };

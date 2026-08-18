@@ -1,6 +1,4 @@
-import mongoose, { Document, mongo, Schema, Types } from "mongoose";
-import { required } from "zod/mini";
-import Department from "./Department.js";
+import mongoose,{ Document, Schema, Types } from "mongoose";
 
 export type QueueStatus = 
 | "waiting"
@@ -103,7 +101,7 @@ const queueSchema = new Schema<IQueue>(
 );
 // prevent duplicate ticket number for the same department on the same date
 queueSchema.index({
-    Department: 1,
+    department: 1,
     date: 1,
     ticketNumber: 1,
 }, {unique:true});

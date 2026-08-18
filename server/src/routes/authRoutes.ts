@@ -22,7 +22,7 @@ router.get("/me",protect,(
         },
     });
 });
-router.get("/admin-test", adminOnly, protect,(_req, res) => {
+router.get("/admin-test", protect, adminOnly,(_req, res) => {
     res.status(200).json({
         success: true,
         message: "Welcome Admin!"

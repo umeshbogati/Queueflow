@@ -2,9 +2,12 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../types/auth.js";
 import {
     createQueue,
+    getAllQueues,
     getMyQueues,
     getQueueById,
     updateQueueStatus,
+    callNextQueue,
+    getQueueStats,
 } from "../services/queueService.js";
 import {
     createQueueSchema,
@@ -17,6 +20,7 @@ export const createQueueController = async (
     res: Response
 ): Promise<void> => {
     try {
+        console.log("CREATE QUEUE - body:", JSON.stringify(req.body), "user:", req.user?.id);
         if (!req.user?.id) {
             res.status(401).json({
                 success: false,
@@ -49,9 +53,30 @@ export const createQueueController = async (
             data: queue,
         });
     } catch (error: any) {
+        console.error("Create queue error:", error);
         res.status(400).json({
             success: false,
             message: error.message || "Failed to create queue",
+        });
+    }
+};
+
+// GET ALL QUEUES
+export const getAllQueuesController = async (
+    _req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    try {
+        const queues = await getAllQueues();
+
+        res.status(200).json({
+            success: true,
+            data: queues,
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch queues",
         });
     }
 };
@@ -103,6 +128,55 @@ export const getQueueByIdController = async (
         res.status(status).json({
             success: false,
             message: error.message || "Failed to fetch queue",
+        });
+    }
+};
+
+// CALL NEXT QUEUE
+export const callNextController = async (
+    _req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    try {
+        const queue = await callNextQueue();
+
+        res.status(200).json({
+            success: true,
+            message: "Next queue called",
+            data: queue,
+        });
+    } catch (error: any) {
+        if (error.message === "No waiting queues") {
+            res.status(200).json({
+                success: true,
+                message: "No waiting queues",
+                data: null,
+            });
+            return;
+        }
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to call next queue",
+        });
+    }
+};
+
+// GET QUEUE STATS
+export const getQueueStatsController = async (
+    _req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    try {
+        const stats = await getQueueStats();
+
+        res.status(200).json({
+            success: true,
+            data: stats,
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch queue stats",
         });
     }
 };
