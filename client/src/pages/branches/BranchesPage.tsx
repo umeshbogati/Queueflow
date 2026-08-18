@@ -12,8 +12,9 @@ const BranchesPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadBranches = async () => {
+  const loadBranches = async (showLoading = true) => {
     try {
+      if (showLoading) setLoading(true);
       const response = await getBranches();
       const list = response.data ?? response.branches ?? [];
       setBranches(Array.isArray(response) ? response : list);
@@ -26,7 +27,7 @@ const BranchesPage = () => {
   };
 
   useEffect(() => {
-    void loadBranches();
+    void loadBranches(false);
   }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
