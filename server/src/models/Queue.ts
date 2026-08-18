@@ -17,6 +17,7 @@ export interface IQueue extends Document {
 
     status: QueueStatus;
     date: string;
+    counterNumber?: number;
 
     calledAt?: Date;
     servingAt?: Date;
@@ -78,6 +79,10 @@ const queueSchema = new Schema<IQueue>(
             type: String,
             required: true,
             index: true,
+        },
+
+        counterNumber: {
+            type: Number,
         },
 
         calledAt: {

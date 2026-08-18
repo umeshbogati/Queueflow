@@ -118,7 +118,7 @@ export const getQueueById = async (queueId: string) => {
     return queue;
 };
 
-export const callNextQueue = async () => {
+export const callNextQueue = async (counterNumber?: number) => {
     const queue = await Queue.findOne({ status: "waiting" })
         .sort({ ticketNumber: 1 })
         .populate("branch", "name location")
@@ -130,6 +130,9 @@ export const callNextQueue = async () => {
 
     queue.status = "called";
     queue.calledAt = new Date();
+    if (counterNumber) {
+        queue.counterNumber = counterNumber;
+    }
     await queue.save();
 
     return queue;
@@ -160,7 +163,8 @@ export const getQueueStats = async (): Promise<QueueStats> => {
 
 export const updateQueueStatus = async (
     queueId: string,
-    status: Exclude<QueueStatus, "waiting">
+    status: Exclude<QueueStatus, "waiting">,
+    counterNumber?: number
 ) => {
     if (!mongoose.Types.ObjectId.isValid(queueId)) {
         throw new Error("Invalid queue ID");
@@ -181,6 +185,10 @@ export const updateQueueStatus = async (
     }
 
     queue.status = status;
+
+    if (status === "serving" && counterNumber) {
+        queue.counterNumber = counterNumber;
+    }
 
     const now = new Date();
     if (status === "called" && !queue.calledAt) {

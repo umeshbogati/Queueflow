@@ -7,6 +7,8 @@ interface Queue {
   status: string;
   counterNumber?: number;
   position?: number;
+  branch?: { name: string };
+  department?: { name: string };
 }
 
 const QueuePositionPage = () => {
@@ -14,6 +16,7 @@ const QueuePositionPage = () => {
   const [queue, setQueue] = useState<Queue | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
 
   const checkPosition = async () => {
@@ -44,6 +47,28 @@ const QueuePositionPage = () => {
       setLoading(false);
     }
   };
+
+  const cancelQueue = async () => {
+    if (!queue) return;
+
+    try {
+      setCancelling(true);
+      setError("");
+
+      const response = await api.patch<{ data: Queue }>(
+        `/queues/${queue._id}/status`,
+        { status: "cancelled" }
+      );
+
+      setQueue(response.data.data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || "Failed to cancel queue.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const canCancel = queue && (queue.status === "waiting" || queue.status === "called");
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -98,8 +123,28 @@ const QueuePositionPage = () => {
 
               <p className="mt-4">
                 Status:{" "}
-                <strong>{queue.status}</strong>
+                <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                  queue.status === "waiting" ? "bg-yellow-100 text-yellow-700"
+                  : queue.status === "serving" ? "bg-blue-100 text-blue-700"
+                  : queue.status === "called" ? "bg-purple-100 text-purple-700"
+                  : queue.status === "cancelled" ? "bg-red-100 text-red-700"
+                  : "bg-green-100 text-green-700"
+                }`}>
+                  {queue.status}
+                </span>
               </p>
+
+              {queue.branch && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Branch: <span className="font-medium text-gray-700">{queue.branch.name}</span>
+                </p>
+              )}
+
+              {queue.department && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Department: <span className="font-medium text-gray-700">{queue.department.name}</span>
+                </p>
+              )}
 
               {queue.position !== undefined && (
                 <p className="mt-2">
@@ -112,6 +157,22 @@ const QueuePositionPage = () => {
                 <p className="mt-2">
                   Counter:{" "}
                   <strong>{queue.counterNumber}</strong>
+                </p>
+              )}
+
+              {canCancel && (
+                <button
+                  onClick={cancelQueue}
+                  disabled={cancelling}
+                  className="mt-6 w-full rounded-lg border border-red-300 px-4 py-3 font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                >
+                  {cancelling ? "Cancelling..." : "Cancel Queue"}
+                </button>
+              )}
+
+              {queue.status === "cancelled" && (
+                <p className="mt-4 text-sm text-red-500">
+                  This queue has been cancelled.
                 </p>
               )}
 

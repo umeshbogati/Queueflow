@@ -16,7 +16,7 @@ const Sidebar = () => {
     { name: "Admin Dashboard", path: "/admin" },
     { name: "Branches", path: "/branches" },
     { name: "Departments", path: "/departments" },
-    { name: "All Queues", path: "/queues" },
+    { name: "All Queues", path: "/queue" },
     { name: "Call Next", path: "/call-next" },
     { name: "Counter Staff", path: "/counter" },
     { name: "Statistics", path: "/statistics" },

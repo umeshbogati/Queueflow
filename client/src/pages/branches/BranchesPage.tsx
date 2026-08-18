@@ -54,9 +54,10 @@ const BranchesPage = () => {
       setLocation("");
       setSuccess("Branch created successfully.");
       await loadBranches();
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Create branch error:", err);
-      setError(err instanceof Error ? err.message : "Failed to create branch.");
+      const msg = err.response?.data?.message || err.message || "Failed to create branch.";
+      setError(msg);
     } finally {
       setSaving(false);
     }

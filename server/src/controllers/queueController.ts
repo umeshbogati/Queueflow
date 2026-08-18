@@ -134,11 +134,12 @@ export const getQueueByIdController = async (
 
 // CALL NEXT QUEUE
 export const callNextController = async (
-    _req: AuthenticatedRequest,
+    req: AuthenticatedRequest,
     res: Response
 ): Promise<void> => {
     try {
-        const queue = await callNextQueue();
+        const { counterNumber } = req.body || {};
+        const queue = await callNextQueue(counterNumber);
 
         res.status(200).json({
             success: true,
@@ -199,7 +200,8 @@ export const updateQueueStatusController = async (
             return;
         }
 
-        const queue = await updateQueueStatus(id, validation.data.status);
+        const { counterNumber } = req.body || {};
+        const queue = await updateQueueStatus(id, validation.data.status, counterNumber);
 
         res.status(200).json({
             success: true,

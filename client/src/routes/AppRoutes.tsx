@@ -86,11 +86,6 @@ const AppRoutes = () => {
           />
 
           <Route
-            path="/queues"
-            element={<QueuePage />}
-          />
-
-          <Route
             path="/queue-position"
             element={<QueuePositionPage />}
           />
