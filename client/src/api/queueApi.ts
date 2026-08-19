@@ -1,5 +1,38 @@
 import api from "./axios";
 
+export type QueueStatus =
+  | "waiting"
+  | "called"
+  | "serving"
+  | "completed"
+  | "cancelled";
+
+export interface QueueParty {
+  _id: string;
+  name: string;
+}
+
+export interface Queue {
+  _id: string;
+  displayNumber: string;
+  status: QueueStatus;
+  counterNumber?: number;
+  position?: number;
+  branch?: QueueParty;
+  department?: QueueParty;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QueueStats {
+  total: number;
+  waiting: number;
+  called: number;
+  serving: number;
+  completed: number;
+  cancelled: number;
+}
+
 export interface CreateQueueData {
   branch: string;
   department: string;
@@ -7,33 +40,40 @@ export interface CreateQueueData {
 
 export const getQueues = async () => {
   const response = await api.get("/queues");
-
   return response.data;
 };
 
 export const getQueueById = async (id: string) => {
   const response = await api.get(`/queues/${id}`);
-
   return response.data;
 };
 
 export const createQueue = async (data: CreateQueueData) => {
   const response = await api.post("/queues", data);
-
   return response.data;
 };
 
-export const updateQueue = async (
+export const callNextQueue = async (counterNumber: number) => {
+  const response = await api.patch("/queues/call-next", {
+    counterNumber,
+  });
+  return response.data;
+};
+
+export const updateQueueStatus = async (
   id: string,
-  data: Record<string, unknown>
+  data: { status: QueueStatus; counterNumber?: number }
 ) => {
   const response = await api.patch(`/queues/${id}/status`, data);
-
   return response.data;
 };
 
 export const deleteQueue = async (id: string) => {
   const response = await api.delete(`/queues/${id}`);
+  return response.data;
+};
 
+export const getQueueStats = async () => {
+  const response = await api.get("/queues/stats");
   return response.data;
 };

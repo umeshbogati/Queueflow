@@ -30,24 +30,5 @@ export const loginUser = async (
     data
   );
 
-  if (response.data.token) {
-    localStorage.setItem(
-      "token",
-      response.data.token
-    );
-  }
-
-  if (response.data.user) {
-    localStorage.setItem(
-      "user",
-      JSON.stringify(response.data.user)
-    );
-  }
-
   return response.data;
-};
-
-export const logoutUser = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
 };

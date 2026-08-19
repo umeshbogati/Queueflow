@@ -1,69 +1,41 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import api from "../../api/axios";
-
-interface Branch {
-  _id: string;
-  name: string;
-}
-
-interface Department {
-  _id: string;
-  name: string;
-  branch?: { _id: string; name: string } | string;
-}
-
-interface Queue {
-  _id: string;
-  displayNumber: string;
-  status: "waiting" | "called" | "serving" | "completed" | "cancelled";
-  counterNumber?: number;
-  branch?: { _id: string; name: string };
-  department?: { _id: string; name: string };
-}
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchBranches } from "../../store/slices/branchSlice";
+import { fetchDepartments } from "../../store/slices/departmentSlice";
+import { fetchQueues, addQueue, clearQueueError } from "../../store/slices/queueSlice";
 
 const QueuePage = () => {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [queues, setQueues] = useState<Queue[]>([]);
+  const dispatch = useAppDispatch();
+
+  const { branches, loading: branchLoading } = useAppSelector(
+    (state) => state.branch
+  );
+  const { departments, loading: deptLoading } = useAppSelector(
+    (state) => state.department
+  );
+  const { queues, loading: queueLoading, saving, error } = useAppSelector(
+    (state) => state.queue
+  );
 
   const [branchId, setBranchId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const loading = branchLoading || deptLoading || queueLoading;
 
   useEffect(() => {
-    let cancelled = false;
+    dispatch(fetchBranches());
+    dispatch(fetchDepartments());
+    dispatch(fetchQueues());
+  }, [dispatch]);
 
-    const fetchData = async () => {
-      try {
-        const [branchRes, deptRes, queueRes] = await Promise.all([
-          api.get("/branches"),
-          api.get("/departments"),
-          api.get("/queues"),
-        ]);
-
-        if (cancelled) return;
-
-        setBranches(branchRes.data.data ?? []);
-        setDepartments(deptRes.data.data ?? []);
-        setQueues(queueRes.data.data ?? []);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        console.error("Queue load error:", err);
-        setError(err instanceof Error ? err.message : "Failed to load data.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  useEffect(() => {
+    return () => {
+      dispatch(clearQueueError());
     };
+  }, [dispatch]);
 
-    fetchData();
-    return () => { cancelled = true; };
-  }, []);
-
-  const getDepartmentBranchId = (dept: Department): string => {
+  const getDepartmentBranchId = (dept: { branch?: { _id: string; name: string } | string }): string => {
     const b = dept.branch;
     if (!b) return "";
     if (typeof b === "string") return b;
@@ -77,21 +49,14 @@ const QueuePage = () => {
 
   const handleCreateQueue = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!branchId) { setError("Please select a branch."); return; }
-    if (!departmentId) { setError("Please select a department."); return; }
+    if (!branchId) return;
+    if (!departmentId) return;
 
-    try {
-      setCreating(true);
-      setError("");
-      await api.post("/queues", { branch: branchId, department: departmentId });
+    const result = await dispatch(addQueue({ branch: branchId, department: departmentId }));
+
+    if (addQueue.fulfilled.match(result)) {
       setBranchId("");
       setDepartmentId("");
-      const queueRes = await api.get("/queues");
-      setQueues(queueRes.data.data ?? []);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create queue.");
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -153,10 +118,10 @@ const QueuePage = () => {
 
               <button
                 type="submit"
-                disabled={creating || !branchId || !departmentId}
+                disabled={saving || !branchId || !departmentId}
                 className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {creating ? "Creating..." : "Get Queue Number"}
+                {saving ? "Creating..." : "Get Queue Number"}
               </button>
             </form>
           </div>
@@ -169,12 +134,7 @@ const QueuePage = () => {
               </div>
               <button
                 type="button"
-                onClick={async () => {
-                  setLoading(true);
-                  const queueRes = await api.get("/queues");
-                  setQueues(queueRes.data.data ?? []);
-                  setLoading(false);
-                }}
+                onClick={() => dispatch(fetchQueues())}
                 disabled={loading}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >

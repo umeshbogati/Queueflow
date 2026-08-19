@@ -1,13 +1,16 @@
 import { Link, useNavigate } from "react-router-dom";
-import { getUser, logout } from "../../utils/auth";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { logoutUser } from "../../store/slices/authSlice";
 
 const UserDashboardPage = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const user = getUser();
+  const user = useAppSelector((state) => state.auth.user);
 
   const handleLogout = () => {
-    logout();
-    navigate("/login");
+    dispatch(logoutUser()).then(() => {
+      navigate("/login");
+    });
   };
 
   return (

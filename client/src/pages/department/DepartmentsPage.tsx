@@ -1,114 +1,40 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import axios from "axios";
-import api from "../../api/axios";
-
-interface Branch {
-  _id: string;
-  name: string;
-  location?: string;
-}
-
-interface Department {
-  _id: string;
-  name: string;
-  description?: string;
-  branch?: {
-    _id: string;
-    name: string;
-  };
-}
-
-interface ApiResponse<T> {
-  success?: boolean;
-  message?: string;
-  data?: T;
-}
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchBranches } from "../../store/slices/branchSlice";
+import {
+  fetchDepartments,
+  addDepartment,
+  clearDepartmentError,
+} from "../../store/slices/departmentSlice";
 
 const DepartmentPage = () => {
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const dispatch = useAppDispatch();
+
+  const { departments, loading: deptLoading, saving, error: deptError } = useAppSelector(
+    (state) => state.department
+  );
+  const { branches, loading: branchLoading } = useAppSelector(
+    (state) => state.branch
+  );
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [branchId, setBranchId] = useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const [departmentResponse, branchResponse] =
-        await Promise.all([
-          api.get<
-            Department[] | ApiResponse<Department[]>
-          >("/departments"),
-
-          api.get<
-            Branch[] | ApiResponse<Branch[]>
-          >("/branches"),
-        ]);
-
-      // -------------------------
-      // Departments
-      // -------------------------
-
-      const departmentData = departmentResponse.data;
-
-      const departmentList = Array.isArray(departmentData)
-        ? departmentData
-        : Array.isArray(departmentData.data)
-          ? departmentData.data
-          : [];
-
-      // -------------------------
-      // Branches
-      // -------------------------
-
-      const branchData = branchResponse.data;
-
-      const branchList = Array.isArray(branchData)
-        ? branchData
-        : Array.isArray(branchData.data)
-          ? branchData.data
-          : [];
-
-      setDepartments(departmentList);
-      setBranches(branchList);
-
-      console.log("Department response:", departmentData);
-      console.log("Branch response:", branchData);
-      console.log("Departments:", departmentList);
-      console.log("Branches:", branchList);
-    } catch (err: unknown) {
-      console.error("Load data error:", err);
-
-      if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message ||
-          "Failed to load data."
-        );
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to load data.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = deptLoading || branchLoading;
+  const error = deptError;
 
   useEffect(() => {
-    const load = async () => {
-      await loadData();
-    };
+    dispatch(fetchDepartments());
+    dispatch(fetchBranches());
+  }, [dispatch]);
 
-    void load();
-  }, []);
+  useEffect(() => {
+    return () => {
+      dispatch(clearDepartmentError());
+    };
+  }, [dispatch]);
 
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
@@ -116,52 +42,26 @@ const DepartmentPage = () => {
     event.preventDefault();
 
     if (!name.trim()) {
-      setError("Department name is required.");
       return;
     }
 
     if (!branchId) {
-      setError("Please select a branch.");
       return;
     }
 
-    try {
-      setSaving(true);
-      setError("");
-
-      await api.post("/departments", {
+    const result = await dispatch(
+      addDepartment({
         name: name.trim(),
-        description: description.trim(),
         branch: branchId,
-      });
+      })
+    );
 
+    if (addDepartment.fulfilled.match(result)) {
       setName("");
       setDescription("");
       setBranchId("");
-
-      await loadData();
-    } catch (err: unknown) {
-      console.error(
-        "Create department error:",
-        err
-      );
-
-      if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message ||
-            "Failed to create department."
-        );
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to create department.");
-      }
-    } finally {
-      setSaving(false);
     }
   };
-
-  const filteredBranches = branches;
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -179,7 +79,6 @@ const DepartmentPage = () => {
 
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
 
-          {/* Create Department */}
           <form
             onSubmit={handleSubmit}
             className="rounded-xl bg-white p-6 shadow"
@@ -190,7 +89,6 @@ const DepartmentPage = () => {
 
             <div className="mt-5 space-y-4">
 
-              {/* Department Name */}
               <div>
                 <label className="mb-1 block text-sm font-medium">
                   Department Name
@@ -208,7 +106,6 @@ const DepartmentPage = () => {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="mb-1 block text-sm font-medium">
                   Description
@@ -225,7 +122,6 @@ const DepartmentPage = () => {
                 />
               </div>
 
-              {/* Branch */}
               <div>
                 <label className="mb-1 block text-sm font-medium">
                   Branch
@@ -243,7 +139,7 @@ const DepartmentPage = () => {
                     Select Branch
                   </option>
 
-                  {filteredBranches.map((branch) => (
+                  {branches.map((branch) => (
                     <option
                       key={branch._id}
                       value={branch._id}
@@ -261,7 +157,6 @@ const DepartmentPage = () => {
                 )}
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={saving || branches.length === 0}
@@ -275,7 +170,6 @@ const DepartmentPage = () => {
             </div>
           </form>
 
-          {/* Department List */}
           <div className="rounded-xl bg-white p-6 shadow lg:col-span-2">
 
             <h2 className="text-xl font-bold">

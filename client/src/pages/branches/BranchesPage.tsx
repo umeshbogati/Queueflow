@@ -1,65 +1,48 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { createBranch, getBranches } from "../../api/branchApi";
-import type { Branch } from "../../api/branchApi";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchBranches, addBranch, clearBranchError } from "../../store/slices/branchSlice";
 
 const BranchesPage = () => {
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const dispatch = useAppDispatch();
+  const { branches, loading, saving, error } = useAppSelector(
+    (state) => state.branch
+  );
+
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadBranches = async (showLoading = true) => {
-    try {
-      if (showLoading) setLoading(true);
-      const response = await getBranches();
-      const list = response.data ?? response.branches ?? [];
-      setBranches(Array.isArray(response) ? response : list);
-    } catch (err: unknown) {
-      console.error("Load branches error:", err);
-      setError(err instanceof Error ? err.message : "Failed to load branches.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    dispatch(fetchBranches());
+  }, [dispatch]);
 
   useEffect(() => {
-    void loadBranches(false);
-  }, []);
+    return () => {
+      dispatch(clearBranchError());
+    };
+  }, [dispatch]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setSuccess("");
 
     const branchName = name.trim();
     const branchLocation = location.trim();
 
     if (!branchName) {
-      setError("Branch name is required.");
       return;
     }
     if (!branchLocation) {
-      setError("Branch location is required.");
       return;
     }
 
-    try {
-      setSaving(true);
-      await createBranch({ name: branchName, location: branchLocation });
+    const result = await dispatch(addBranch({ name: branchName, location: branchLocation }));
+
+    if (addBranch.fulfilled.match(result)) {
       setName("");
       setLocation("");
       setSuccess("Branch created successfully.");
-      await loadBranches();
-    } catch (err: any) {
-      console.error("Create branch error:", err);
-      const msg = err.response?.data?.message || err.message || "Failed to create branch.";
-      setError(msg);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -73,7 +56,7 @@ const BranchesPage = () => {
           </div>
           <button
             type="button"
-            onClick={() => void loadBranches()}
+            onClick={() => dispatch(fetchBranches())}
             disabled={loading}
             className="rounded-lg border bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >

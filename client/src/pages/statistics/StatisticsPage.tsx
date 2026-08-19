@@ -1,38 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import api from "../../api/axios";
-
-interface QueueStats {
-  total: number;
-  waiting: number;
-  called: number;
-  serving: number;
-  completed: number;
-  cancelled: number;
-}
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchQueueStatistics } from "../../store/slices/queueSlice";
 
 const StatisticsPage = () => {
-  const [stats, setStats] = useState<QueueStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const dispatch = useAppDispatch();
+  const { stats, loading, error } = useAppSelector((state) => state.queue);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const response = await api.get<{ data: QueueStats }>("/queues/stats");
-        setStats(response.data.data);
-      } catch (err: unknown) {
-        console.error("Failed to load stats:", err);
-        setError("Failed to load statistics.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+    dispatch(fetchQueueStatistics());
+  }, [dispatch]);
 
   if (loading) {
     return (
@@ -129,7 +106,6 @@ const StatisticsPage = () => {
 
             </div>
 
-            {/* Progress bar */}
             <div className="mt-10 rounded-xl bg-white p-6 shadow">
               <h3 className="mb-4 text-lg font-bold text-gray-900">
                 Queue Progress

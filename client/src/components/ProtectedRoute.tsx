@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { getToken, getUserRole } from "../utils/auth";
+import { useAppSelector } from "../store/hooks";
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
@@ -8,8 +8,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({
   allowedRoles,
 }: ProtectedRouteProps) => {
-  const token = getToken();
-  const role = getUserRole();
+  const { token, user } = useAppSelector((state) => state.auth);
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -17,7 +16,7 @@ const ProtectedRoute = ({
 
   if (
     allowedRoles &&
-    (!role || !allowedRoles.includes(role.toLowerCase()))
+    (!user?.role || !allowedRoles.includes(user.role.toLowerCase()))
   ) {
     return <Navigate to="/dashboard" replace />;
   }

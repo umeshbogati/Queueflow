@@ -1,73 +1,36 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  createBranch,
-} from "../../api/branchApi";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { addBranch } from "../../store/slices/branchSlice";
 
 const CreateBranchPage = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const { saving, error } = useAppSelector((state) => state.branch);
 
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    setError("");
-
     const trimmedName = name.trim();
     const trimmedLocation = location.trim();
 
     if (!trimmedName) {
-      setError("Branch name is required.");
       return;
     }
 
-    setLoading(true);
+    const result = await dispatch(
+      addBranch({ name: trimmedName, location: trimmedLocation })
+    );
 
-    try {
-      await createBranch({
-        name: trimmedName,
-        location: trimmedLocation,
-      });
-
+    if (addBranch.fulfilled.match(result)) {
       navigate("/branches");
-    } catch (error: unknown) {
-      console.error(
-        "Failed to create branch:",
-        error
-      );
-
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error
-      ) {
-        const axiosError = error as {
-          response?: {
-            data?: {
-              message?: string;
-            };
-          };
-        };
-
-        setError(
-          axiosError.response?.data?.message ||
-            "Failed to create branch."
-        );
-      } else if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Failed to create branch.");
-      }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -77,7 +40,6 @@ const CreateBranchPage = () => {
 
         <div className="rounded-xl bg-white p-6 shadow">
 
-          {/* Header */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
               Create Branch
@@ -88,7 +50,6 @@ const CreateBranchPage = () => {
             </p>
           </div>
 
-          {/* Error */}
           {error && (
             <div
               role="alert"
@@ -98,13 +59,11 @@ const CreateBranchPage = () => {
             </div>
           )}
 
-          {/* Form */}
           <form
             onSubmit={handleSubmit}
             className="space-y-5"
           >
 
-            {/* Branch Name */}
             <div>
               <label
                 htmlFor="branch-name"
@@ -122,12 +81,11 @@ const CreateBranchPage = () => {
                 }
                 placeholder="Kathmandu Branch"
                 required
-                disabled={loading}
+                disabled={saving}
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
               />
             </div>
 
-            {/* Location */}
             <div>
               <label
                 htmlFor="branch-location"
@@ -144,18 +102,17 @@ const CreateBranchPage = () => {
                   setLocation(event.target.value)
                 }
                 placeholder="Kathmandu"
-                disabled={loading}
+                disabled={saving}
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
               />
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-3">
 
               <button
                 type="button"
                 onClick={() => navigate("/branches")}
-                disabled={loading}
+                disabled={saving}
                 className="rounded-lg border border-gray-300 px-5 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
@@ -163,10 +120,10 @@ const CreateBranchPage = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={saving}
                 className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading
+                {saving
                   ? "Creating..."
                   : "Create Branch"}
               </button>

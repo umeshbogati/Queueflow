@@ -1,74 +1,32 @@
 import { useState } from "react";
-import api from "../../api/axios";
-
-interface Queue {
-  _id: string;
-  displayNumber: string;
-  status: string;
-  counterNumber?: number;
-  position?: number;
-  branch?: { name: string };
-  department?: { name: string };
-}
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchQueueById, changeQueueStatus } from "../../store/slices/queueSlice";
 
 const QueuePositionPage = () => {
-  const [queueId, setQueueId] = useState("");
-  const [queue, setQueue] = useState<Queue | null>(null);
+  const dispatch = useAppDispatch();
+  const { selectedQueue, loading, saving, error } = useAppSelector(
+    (state) => state.queue
+  );
 
-  const [loading, setLoading] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [error, setError] = useState("");
+  const [queueId, setQueueId] = useState("");
 
   const checkPosition = async () => {
     if (!queueId.trim()) {
-      setError("Please enter queue ID.");
       return;
     }
-
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await api.get<{ success?: boolean; data?: Queue }>(
-        `/queues/${queueId}`
-      );
-
-      const queueData = response.data.data ?? null;
-      setQueue(queueData);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to find queue."
-      );
-
-      setQueue(null);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(fetchQueueById(queueId.trim()));
   };
 
   const cancelQueue = async () => {
-    if (!queue) return;
-
-    try {
-      setCancelling(true);
-      setError("");
-
-      const response = await api.patch<{ data: Queue }>(
-        `/queues/${queue._id}/status`,
-        { status: "cancelled" }
-      );
-
-      setQueue(response.data.data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Failed to cancel queue.");
-    } finally {
-      setCancelling(false);
-    }
+    if (!selectedQueue) return;
+    dispatch(
+      changeQueueStatus({ id: selectedQueue._id, status: "cancelled" })
+    );
   };
 
-  const canCancel = queue && (queue.status === "waiting" || queue.status === "called");
+  const canCancel =
+    selectedQueue &&
+    (selectedQueue.status === "waiting" || selectedQueue.status === "called");
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -110,7 +68,7 @@ const QueuePositionPage = () => {
               : "Check Position"}
           </button>
 
-          {queue && (
+          {selectedQueue && (
             <div className="mt-8 rounded-xl border p-6 text-center">
 
               <p className="text-sm text-gray-500">
@@ -118,59 +76,59 @@ const QueuePositionPage = () => {
               </p>
 
               <h2 className="mt-2 text-5xl font-bold text-blue-600">
-                {queue.displayNumber}
+                {selectedQueue.displayNumber}
               </h2>
 
               <p className="mt-4">
                 Status:{" "}
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                  queue.status === "waiting" ? "bg-yellow-100 text-yellow-700"
-                  : queue.status === "serving" ? "bg-blue-100 text-blue-700"
-                  : queue.status === "called" ? "bg-purple-100 text-purple-700"
-                  : queue.status === "cancelled" ? "bg-red-100 text-red-700"
+                  selectedQueue.status === "waiting" ? "bg-yellow-100 text-yellow-700"
+                  : selectedQueue.status === "serving" ? "bg-blue-100 text-blue-700"
+                  : selectedQueue.status === "called" ? "bg-purple-100 text-purple-700"
+                  : selectedQueue.status === "cancelled" ? "bg-red-100 text-red-700"
                   : "bg-green-100 text-green-700"
                 }`}>
-                  {queue.status}
+                  {selectedQueue.status}
                 </span>
               </p>
 
-              {queue.branch && (
+              {selectedQueue.branch && (
                 <p className="mt-2 text-sm text-gray-500">
-                  Branch: <span className="font-medium text-gray-700">{queue.branch.name}</span>
+                  Branch: <span className="font-medium text-gray-700">{selectedQueue.branch.name}</span>
                 </p>
               )}
 
-              {queue.department && (
+              {selectedQueue.department && (
                 <p className="mt-1 text-sm text-gray-500">
-                  Department: <span className="font-medium text-gray-700">{queue.department.name}</span>
+                  Department: <span className="font-medium text-gray-700">{selectedQueue.department.name}</span>
                 </p>
               )}
 
-              {queue.position !== undefined && (
+              {selectedQueue.position !== undefined && (
                 <p className="mt-2">
                   Position:{" "}
-                  <strong>{queue.position}</strong>
+                  <strong>{selectedQueue.position}</strong>
                 </p>
               )}
 
-              {queue.counterNumber && (
+              {selectedQueue.counterNumber && (
                 <p className="mt-2">
                   Counter:{" "}
-                  <strong>{queue.counterNumber}</strong>
+                  <strong>{selectedQueue.counterNumber}</strong>
                 </p>
               )}
 
               {canCancel && (
                 <button
                   onClick={cancelQueue}
-                  disabled={cancelling}
+                  disabled={saving}
                   className="mt-6 w-full rounded-lg border border-red-300 px-4 py-3 font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
                 >
-                  {cancelling ? "Cancelling..." : "Cancel Queue"}
+                  {saving ? "Cancelling..." : "Cancel Queue"}
                 </button>
               )}
 
-              {queue.status === "cancelled" && (
+              {selectedQueue.status === "cancelled" && (
                 <p className="mt-4 text-sm text-red-500">
                   This queue has been cancelled.
                 </p>

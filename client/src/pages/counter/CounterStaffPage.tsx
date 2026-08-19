@@ -1,6 +1,14 @@
 import { Link } from "react-router-dom";
+import { useAppSelector } from "../../store/hooks";
 
 const CounterStaffPage = () => {
+  const counterNumber = useAppSelector(
+    (state) => state.counter.currentCounterNumber
+  );
+  const { queues } = useAppSelector((state) => state.queue);
+
+  const waitingCount = queues.filter((q) => q.status === "waiting").length;
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
 
@@ -22,7 +30,7 @@ const CounterStaffPage = () => {
             </p>
 
             <h2 className="mt-2 text-4xl font-bold">
-              Counter 1
+              Counter {counterNumber}
             </h2>
           </div>
 
@@ -32,7 +40,7 @@ const CounterStaffPage = () => {
             </p>
 
             <h2 className="mt-2 text-4xl font-bold">
-              0
+              {waitingCount}
             </h2>
           </div>
 

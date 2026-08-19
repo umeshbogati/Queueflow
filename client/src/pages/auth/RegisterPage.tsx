@@ -1,70 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PasswordInput from "../../components/PasswordInput";
-import api from "../../api/axios";
-
-interface RegisterResponse {
-  message?: string;
-  token?: string;
-  accessToken?: string;
-  user?: {
-    _id?: string;
-    id?: string;
-    name?: string;
-    email?: string;
-    role?: string;
-  };
-}
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  registerUser,
+  clearRegisterMessages,
+} from "../../store/slices/authSlice";
 
 const RegisterPage = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const { registerLoading, registerError, registerSuccess } = useAppSelector(
+    (state) => state.auth
+  );
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  useEffect(() => {
+    return () => {
+      dispatch(clearRegisterMessages());
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (registerSuccess) {
+      const timer = setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [registerSuccess, navigate]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    setError("");
-    setSuccess("");
-    setLoading(true);
-
-    try {
-      const response = await api.post<RegisterResponse>(
-        "/auth/register",
-        {
-          name,
-          email,
-          password,
-        }
-      );
-
-      const data = response.data;
-
-      setSuccess(
-        data.message ??
-          "Registration successful. You can now login."
-      );
-
-      setTimeout(() => {
-        navigate("/login");
-      }, 1000);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Registration failed.";
-
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(registerUser({ name, email, password }));
   };
 
   return (
@@ -81,15 +54,15 @@ const RegisterPage = () => {
           </p>
         </div>
 
-        {error && (
+        {registerError && (
           <div className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-600">
-            {error}
+            {registerError}
           </div>
         )}
 
-        {success && (
+        {registerSuccess && (
           <div className="mb-5 rounded-lg bg-green-50 p-3 text-sm text-green-600">
-            {success}
+            {registerSuccess}
           </div>
         )}
 
@@ -133,10 +106,10 @@ const RegisterPage = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={registerLoading}
             className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? "Creating account..." : "Register"}
+            {registerLoading ? "Creating account..." : "Register"}
           </button>
         </form>
 

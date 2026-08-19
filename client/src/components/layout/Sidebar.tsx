@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { getUserRole } from "../../utils/auth";
+import { useAppSelector } from "../../store/hooks";
 
 const Sidebar = () => {
-  const role = getUserRole();
-  const isAdmin = role?.toLowerCase() === "admin" || role?.toLowerCase() === "super_admin";
+  const user = useAppSelector((state) => state.auth.user);
+  const role = user?.role?.toLowerCase();
+  const isAdmin = role === "admin" || role === "super_admin";
 
   const userItems = [
     { name: "Dashboard", path: "/dashboard" },

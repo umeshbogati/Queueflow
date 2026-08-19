@@ -1,89 +1,40 @@
-import {  useState } from "react";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PasswordInput from "../../components/PasswordInput";
-import { setAuth } from "../../utils/auth";
-import api from "../../api/axios";
-
-interface LoginResponse {
-  token?: string;
-  accessToken?: string;
-  user?: {
-    _id?: string;
-    id?: string;
-    name?: string;
-    email?: string;
-    role?: string;
-  };
-  data?: {
-    token?: string;
-    accessToken?: string;
-    user?: {
-      _id?: string;
-      id?: string;
-      name?: string;
-      email?: string;
-      role?: string;
-    };
-  };
-  message?: string;
-}
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { loginUser, clearAuthError } from "../../store/slices/authSlice";
 
 const LoginPage = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const { loading, error, isAuthenticated, user } = useAppSelector(
+    (state) => state.auth
+  );
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    setError("");
-    setLoading(true);
-
-    try {
-      const response = await api.post<LoginResponse>(
-        "/auth/login",
-        {
-          email,
-          password,
-        }
-      );
-
-      const data = response.data;
-
-      const token =
-        data.token ??
-        data.accessToken ??
-        data.data?.token ??
-        data.data?.accessToken;
-
-      const user = data.user ?? data.data?.user;
-
-      if (!token) {
-        throw new Error("Login successful but token was not returned.");
-      }
-
-      setAuth(token, user);
-
-      if (user?.role === "super_admin" || user?.role === "admin") {
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "super_admin" || user.role === "admin") {
         navigate("/admin");
       } else {
         navigate("/dashboard");
       }
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Login failed. Please check your credentials.";
-
-      setError(message);
-    } finally {
-      setLoading(false);
     }
+  }, [isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearAuthError());
+    };
+  }, [dispatch]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    dispatch(loginUser({ email, password }));
   };
 
   return (

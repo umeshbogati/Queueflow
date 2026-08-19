@@ -1,13 +1,16 @@
 import { Link, useNavigate } from "react-router-dom";
-import { getUser, logout } from "../../utils/auth";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { logoutUser } from "../../store/slices/authSlice";
 
 const AdminDashboardPage = () => {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const user = getUser();
+  const user = useAppSelector((state) => state.auth.user);
 
   const handleLogout = () => {
-    logout();
-    navigate("/login");
+    dispatch(logoutUser()).then(() => {
+      navigate("/login");
+    });
   };
 
   return (
@@ -45,7 +48,6 @@ const AdminDashboardPage = () => {
           </p>
         </div>
 
-        {/* Management Section */}
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Management
         </h3>
@@ -99,7 +101,6 @@ const AdminDashboardPage = () => {
 
         </div>
 
-        {/* Operations Section */}
         <h3 className="mb-4 mt-10 text-sm font-semibold uppercase tracking-wider text-gray-400">
           Operations
         </h3>
