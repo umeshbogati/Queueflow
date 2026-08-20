@@ -276,3 +276,20 @@ export const updateQueueStatus = async (
 
     return queue;
 };
+
+export const deleteQueue = async (queueId: string) => {
+    if (!mongoose.Types.ObjectId.isValid(queueId)) {
+        throw new Error("Invalid queue ID");
+    }
+
+    const queue = await Queue.findByIdAndDelete(queueId);
+
+    if (!queue) {
+        throw new Error("Queue not found");
+    }
+
+    const stats = await getQueueStats();
+    emitStatsUpdated(stats);
+
+    return { message: "Queue deleted successfully" };
+};

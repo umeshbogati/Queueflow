@@ -8,6 +8,7 @@ import {
     updateQueueStatus,
     callNextQueue,
     getQueueStats,
+    deleteQueue,
 } from "../services/queueService.js";
 import {
     createQueueSchema,
@@ -20,7 +21,6 @@ export const createQueueController = async (
     res: Response
 ): Promise<void> => {
     try {
-        console.log("CREATE QUEUE - body:", JSON.stringify(req.body), "user:", req.user?.id);
         if (!req.user?.id) {
             res.status(401).json({
                 success: false,
@@ -213,6 +213,29 @@ export const updateQueueStatusController = async (
         res.status(status).json({
             success: false,
             message: error.message || "Failed to update queue status",
+        });
+    }
+};
+
+// DELETE QUEUE
+export const deleteQueueController = async (
+    req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    try {
+        const id = (req.params.id as string).trim();
+
+        const result = await deleteQueue(id);
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
+        });
+    } catch (error: any) {
+        const status = error.message === "Queue not found" ? 404 : 400;
+        res.status(status).json({
+            success: false,
+            message: error.message || "Failed to delete queue",
         });
     }
 };

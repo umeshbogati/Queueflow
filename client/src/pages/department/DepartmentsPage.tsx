@@ -5,6 +5,8 @@ import { fetchBranches } from "../../store/slices/branchSlice";
 import {
   fetchDepartments,
   addDepartment,
+  editDepartment,
+  removeDepartment,
   clearDepartmentError,
 } from "../../store/slices/departmentSlice";
 import { useAdminSocket } from "../../socket/useSocket";
@@ -24,6 +26,13 @@ const DepartmentPage = () => {
   const [description, setDescription] = useState("");
   const [branchId, setBranchId] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editBranchId, setEditBranchId] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [success, setSuccess] = useState("");
+
   const loading = deptLoading || branchLoading;
   const error = deptError;
 
@@ -38,18 +47,10 @@ const DepartmentPage = () => {
     };
   }, [dispatch]);
 
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!name.trim()) {
-      return;
-    }
-
-    if (!branchId) {
-      return;
-    }
+    if (!name.trim() || !branchId) return;
 
     const result = await dispatch(
       addDepartment({
@@ -63,6 +64,44 @@ const DepartmentPage = () => {
       setName("");
       setDescription("");
       setBranchId("");
+      setSuccess("Department created successfully.");
+    }
+  };
+
+  const startEdit = (dept: typeof departments[0]) => {
+    setEditingId(dept._id);
+    setEditName(dept.name);
+    setEditDescription(dept.description || "");
+    setEditBranchId(dept.branch?._id || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setEditDescription("");
+    setEditBranchId("");
+  };
+
+  const handleEdit = async (id: string) => {
+    const result = await dispatch(editDepartment({
+      id,
+      data: {
+        name: editName.trim(),
+        branch: editBranchId,
+        ...(editDescription.trim() ? { description: editDescription.trim() } : {}),
+      },
+    }));
+    if (editDepartment.fulfilled.match(result)) {
+      cancelEdit();
+      setSuccess("Department updated successfully.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const result = await dispatch(removeDepartment(id));
+    if (removeDepartment.fulfilled.match(result)) {
+      setDeleteConfirmId(null);
+      setSuccess("Department deleted successfully.");
     }
   };
 
@@ -78,6 +117,10 @@ const DepartmentPage = () => {
           <div className="mt-4 rounded-lg bg-red-50 p-4 text-red-600">
             {error}
           </div>
+        )}
+
+        {success && (
+          <div className="mt-4 rounded-lg bg-green-50 p-4 text-green-700">{success}</div>
         )}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
@@ -100,9 +143,7 @@ const DepartmentPage = () => {
                 <input
                   type="text"
                   value={name}
-                  onChange={(event) =>
-                    setName(event.target.value)
-                  }
+                  onChange={(event) => setName(event.target.value)}
                   placeholder="Cardiology"
                   required
                   className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
@@ -116,9 +157,7 @@ const DepartmentPage = () => {
 
                 <textarea
                   value={description}
-                  onChange={(event) =>
-                    setDescription(event.target.value)
-                  }
+                  onChange={(event) => setDescription(event.target.value)}
                   placeholder="Department description"
                   rows={4}
                   className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
@@ -132,21 +171,13 @@ const DepartmentPage = () => {
 
                 <select
                   value={branchId}
-                  onChange={(event) =>
-                    setBranchId(event.target.value)
-                  }
+                  onChange={(event) => setBranchId(event.target.value)}
                   required
                   className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
                 >
-                  <option value="">
-                    Select Branch
-                  </option>
-
+                  <option value="">Select Branch</option>
                   {branches.map((branch) => (
-                    <option
-                      key={branch._id}
-                      value={branch._id}
-                    >
+                    <option key={branch._id} value={branch._id}>
                       {branch.name}
                     </option>
                   ))}
@@ -154,8 +185,7 @@ const DepartmentPage = () => {
 
                 {branches.length === 0 && !loading && (
                   <p className="mt-2 text-sm text-red-500">
-                    No branches available. Create a
-                    branch first.
+                    No branches available. Create a branch first.
                   </p>
                 )}
               </div>
@@ -165,9 +195,7 @@ const DepartmentPage = () => {
                 disabled={saving || branches.length === 0}
                 className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving
-                  ? "Saving..."
-                  : "Add Department"}
+                {saving ? "Saving..." : "Add Department"}
               </button>
 
             </div>
@@ -180,34 +208,102 @@ const DepartmentPage = () => {
             </h2>
 
             {loading ? (
-              <p className="mt-5 text-gray-500">
-                Loading departments...
-              </p>
+              <p className="mt-5 text-gray-500">Loading departments...</p>
             ) : departments.length === 0 ? (
-              <p className="mt-5 text-gray-500">
-                No departments found.
-              </p>
+              <p className="mt-5 text-gray-500">No departments found.</p>
             ) : (
               <div className="mt-5 space-y-3">
 
                 {departments.map((department) => (
-                  <div
-                    key={department._id}
-                    className="rounded-lg border p-4"
-                  >
-                    <h3 className="text-lg font-bold">
-                      {department.name}
-                    </h3>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      {department.description ||
-                        "No description"}
-                    </p>
-
-                    <p className="mt-2 text-sm text-gray-500">
-                      Branch:{" "}
-                      {department.branch?.name || "N/A"}
-                    </p>
+                  <div key={department._id} className="rounded-lg border p-4">
+                    {editingId === department._id ? (
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                          placeholder="Department name"
+                        />
+                        <input
+                          type="text"
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                          placeholder="Description"
+                        />
+                        <select
+                          value={editBranchId}
+                          onChange={(e) => setEditBranchId(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                        >
+                          <option value="">Select Branch</option>
+                          {branches.map((b) => (
+                            <option key={b._id} value={b._id}>{b.name}</option>
+                          ))}
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(department._id)}
+                            disabled={saving || !editName.trim() || !editBranchId}
+                            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {saving ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : deleteConfirmId === department._id ? (
+                      <div>
+                        <p className="text-sm text-red-600">Delete "{department.name}"? This cannot be undone.</p>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={() => handleDelete(department._id)}
+                            disabled={saving}
+                            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {saving ? "Deleting..." : "Yes, Delete"}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-bold">{department.name}</h3>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => startEdit(department)}
+                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(department._id)}
+                              className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {department.description || "No description"}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-500">
+                          Branch: {department.branch?.name || "N/A"}
+                        </p>
+                      </>
+                    )}
                   </div>
                 ))}
 
