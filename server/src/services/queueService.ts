@@ -3,6 +3,41 @@ import Queue, { type QueueStatus } from "../models/Queue.js";
 import Branch from "../models/Branch.js";
 import Department from "../models/Department.js";
 import { User } from "../models/User.js";
+import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated } from "../sockets/emitter.js";
+import type { QueueData } from "../sockets/socketTypes.js";
+
+const toQueueData = (q: InstanceType<typeof Queue>): QueueData => {
+    const branchRaw = q.branch as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; location?: string };
+    const departmentRaw = q.department as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; prefix?: string };
+    const customerRaw = q.customer as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name?: string };
+
+    const branchData: QueueData["branch"] = branchRaw && typeof branchRaw === "object" && "name" in branchRaw
+        ? { _id: (branchRaw._id as mongoose.Types.ObjectId).toString(), name: branchRaw.name, ...(branchRaw.location !== undefined ? { location: branchRaw.location } : {}) }
+        : branchRaw.toString();
+    const departmentData: QueueData["department"] = departmentRaw && typeof departmentRaw === "object" && "name" in departmentRaw
+        ? { _id: (departmentRaw._id as mongoose.Types.ObjectId).toString(), name: departmentRaw.name, ...(departmentRaw.prefix !== undefined ? { prefix: departmentRaw.prefix } : {}) }
+        : departmentRaw.toString();
+    const customerData: QueueData["customer"] = customerRaw && typeof customerRaw === "object" && "name" in customerRaw
+        ? { _id: (customerRaw._id as mongoose.Types.ObjectId).toString(), name: customerRaw.name }
+        : customerRaw.toString();
+
+    const data: QueueData = {
+        _id: q._id.toString(),
+        ticketNumber: q.ticketNumber,
+        displayNumber: q.displayNumber,
+        branch: branchData,
+        department: departmentData,
+        customer: customerData,
+        status: q.status,
+        date: q.date,
+    };
+    if (q.counterNumber !== undefined) data.counterNumber = q.counterNumber;
+    if (q.calledAt !== undefined) data.calledAt = q.calledAt;
+    if (q.servingAt !== undefined) data.servingAt = q.servingAt;
+    if (q.completedAt !== undefined) data.completedAt = q.completedAt;
+    if (q.cancelledAt !== undefined) data.cancelledAt = q.cancelledAt;
+    return data;
+};
 
 interface CreateQueueData {
     branch: string;
@@ -78,6 +113,18 @@ export const createQueue = async ({
         date,
     });
 
+    const populated = await Queue.findById(queue._id)
+        .populate("branch", "name location")
+        .populate("department", "name prefix")
+        .populate("customer", "name");
+
+    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
+    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
+    emitQueueCreated(toQueueData(populated!), branchId, deptId);
+
+    const stats = await getQueueStats();
+    emitStatsUpdated(stats);
+
     return queue;
 };
 
@@ -134,6 +181,18 @@ export const callNextQueue = async (counterNumber?: number) => {
         queue.counterNumber = counterNumber;
     }
     await queue.save();
+
+    const populated = await Queue.findById(queue._id)
+        .populate("branch", "name location")
+        .populate("department", "name prefix")
+        .populate("customer", "name");
+
+    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
+    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
+    emitQueueCalled(toQueueData(populated!), branchId, deptId);
+
+    const stats = await getQueueStats();
+    emitStatsUpdated(stats);
 
     return queue;
 };
@@ -202,6 +261,18 @@ export const updateQueueStatus = async (
     }
 
     await queue.save();
+
+    const populated = await Queue.findById(queue._id)
+        .populate("branch", "name location")
+        .populate("department", "name prefix")
+        .populate("customer", "name");
+
+    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
+    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
+    emitQueueUpdated(toQueueData(populated!), branchId, deptId);
+
+    const stats = await getQueueStats();
+    emitStatsUpdated(stats);
 
     return queue;
 };

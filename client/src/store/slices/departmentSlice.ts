@@ -112,6 +112,30 @@ const departmentSlice = createSlice({
     clearDepartmentError: (state) => {
       state.error = null;
     },
+    applyDepartmentCreated: (state, action) => {
+      const dept = action.payload as Department;
+      const exists = state.departments.find((d) => d._id === dept._id);
+      if (!exists) {
+        state.departments.unshift(dept);
+      }
+    },
+    applyDepartmentUpdated: (state, action) => {
+      const dept = action.payload as Department;
+      const index = state.departments.findIndex((d) => d._id === dept._id);
+      if (index !== -1) {
+        state.departments[index] = dept;
+      }
+      if (state.selectedDepartment?._id === dept._id) {
+        state.selectedDepartment = dept;
+      }
+    },
+    applyDepartmentDeleted: (state, action) => {
+      const id = action.payload as string;
+      state.departments = state.departments.filter((d) => d._id !== id);
+      if (state.selectedDepartment?._id === id) {
+        state.selectedDepartment = null;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -192,6 +216,9 @@ const departmentSlice = createSlice({
 export const {
   clearSelectedDepartment,
   clearDepartmentError,
+  applyDepartmentCreated,
+  applyDepartmentUpdated,
+  applyDepartmentDeleted,
 } = departmentSlice.actions;
 
 export default departmentSlice.reducer;

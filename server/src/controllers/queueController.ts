@@ -34,7 +34,7 @@ export const createQueueController = async (
             res.status(400).json({
                 success: false,
                 message: "Validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }
@@ -195,7 +195,7 @@ export const updateQueueStatusController = async (
             res.status(400).json({
                 success: false,
                 message: "Validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }

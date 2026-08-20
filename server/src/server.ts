@@ -1,19 +1,28 @@
-import dotenv from "dotenv";
+import "dotenv/config";
+import http from "http";
 import app from "./app.js";
+import { Server as SocketIOServer } from "socket.io";
 import connectDB from "./config/db.js";
+import { setupSocketHandlers } from "./sockets/socket.js";
+import type { ServerToClientEvents, ClientToServerEvents } from "./sockets/socketTypes.js";
 
-dotenv.config();
+connectDB();
 
 const PORT = process.env.PORT || 5000;
 
-//  Connect to MongoDB first
-const startServer = async () => {
-    await connectDB();
+const httpServer = http.createServer(app);
 
-    //  Start listening for requests only after DB is ready
-    app.listen(PORT, () => {
-        console.log(` Server is running on port ${PORT}`);
-    });
-};
+export const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
+    cors: {
+        origin: "http://localhost:5173",
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        credentials: true,
+    },
+});
 
-startServer();
+setupSocketHandlers(io);
+
+httpServer.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Socket.IO server is running`);
+});

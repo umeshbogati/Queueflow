@@ -19,7 +19,7 @@ export const register = async (
             res.status(400).json({
                  success: false,
                  message: "validation failed",
-                 errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }
@@ -48,7 +48,7 @@ export const login = async (
             res.status(400).json({
                 success: false,
                 message: "validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }

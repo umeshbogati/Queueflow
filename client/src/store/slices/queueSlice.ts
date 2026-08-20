@@ -153,6 +153,24 @@ const queueSlice = createSlice({
     clearQueueError: (state) => {
       state.error = null;
     },
+    applyQueueUpdate: (state, action) => {
+      const updatedQueue = action.payload as Queue;
+      const index = state.queues.findIndex((q) => q._id === updatedQueue._id);
+      if (index !== -1) {
+        state.queues[index] = updatedQueue;
+      } else {
+        state.queues.unshift(updatedQueue);
+      }
+      if (state.selectedQueue?._id === updatedQueue._id) {
+        state.selectedQueue = updatedQueue;
+      }
+      if (state.currentQueue?._id === updatedQueue._id) {
+        state.currentQueue = updatedQueue;
+      }
+    },
+    applyStatsUpdate: (state, action) => {
+      state.stats = action.payload as QueueStats;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -268,6 +286,8 @@ export const {
   clearSelectedQueue,
   clearCurrentQueue,
   clearQueueError,
+  applyQueueUpdate,
+  applyStatsUpdate,
 } = queueSlice.actions;
 
 export default queueSlice.reducer;

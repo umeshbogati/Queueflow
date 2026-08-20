@@ -1,14 +1,25 @@
+import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { callNext, changeQueueStatus } from "../../store/slices/queueSlice";
+import { callNext, changeQueueStatus, fetchQueues } from "../../store/slices/queueSlice";
+import { useAdminSocket } from "../../socket/useSocket";
 
 const CallNextPage = () => {
   const dispatch = useAppDispatch();
+  useAdminSocket();
 
-  const { currentQueue, saving, error } = useAppSelector(
+  const { currentQueue, queues, saving, error } = useAppSelector(
     (state) => state.queue
   );
   const counterNumber = useAppSelector(
     (state) => state.counter.currentCounterNumber
+  );
+
+  useEffect(() => {
+    dispatch(fetchQueues());
+  }, [dispatch]);
+
+  const activeQueue = currentQueue ?? queues.find(
+    (q) => q.status === "called" || q.status === "serving"
   );
 
   const handleCallNext = () => {
@@ -16,12 +27,12 @@ const CallNextPage = () => {
   };
 
   const updateStatus = (status: "serving" | "completed" | "cancelled") => {
-    if (!currentQueue) return;
+    if (!activeQueue) return;
     dispatch(
       changeQueueStatus({
-        id: currentQueue._id,
+        id: activeQueue._id,
         status,
-        counterNumber: currentQueue.counterNumber || counterNumber,
+        counterNumber: activeQueue.counterNumber || counterNumber,
       })
     );
   };
@@ -51,47 +62,47 @@ const CallNextPage = () => {
             </p>
           </div>
 
-          {currentQueue ? (
+          {activeQueue ? (
             <div>
               <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
                 Now Serving
               </p>
 
               <h2 className="mt-3 text-6xl font-bold text-blue-600">
-                {currentQueue.displayNumber}
+                {activeQueue.displayNumber}
               </h2>
 
               <p className="mt-4 text-gray-600">
                 Status:{" "}
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                  currentQueue.status === "waiting" ? "bg-yellow-100 text-yellow-700"
-                  : currentQueue.status === "serving" ? "bg-blue-100 text-blue-700"
-                  : currentQueue.status === "called" ? "bg-purple-100 text-purple-700"
-                  : currentQueue.status === "cancelled" ? "bg-red-100 text-red-700"
+                  activeQueue.status === "waiting" ? "bg-yellow-100 text-yellow-700"
+                  : activeQueue.status === "serving" ? "bg-blue-100 text-blue-700"
+                  : activeQueue.status === "called" ? "bg-purple-100 text-purple-700"
+                  : activeQueue.status === "cancelled" ? "bg-red-100 text-red-700"
                   : "bg-green-100 text-green-700"
                 }`}>
-                  {currentQueue.status}
+                  {activeQueue.status}
                 </span>
               </p>
 
-              {currentQueue.branch && (
+              {activeQueue.branch && (
                 <p className="mt-2 text-sm text-gray-500">
-                  Branch: <span className="font-medium text-gray-700">{currentQueue.branch.name}</span>
+                  Branch: <span className="font-medium text-gray-700">{activeQueue.branch.name}</span>
                 </p>
               )}
 
-              {currentQueue.department && (
+              {activeQueue.department && (
                 <p className="mt-1 text-sm text-gray-500">
-                  Department: <span className="font-medium text-gray-700">{currentQueue.department.name}</span>
+                  Department: <span className="font-medium text-gray-700">{activeQueue.department.name}</span>
                 </p>
               )}
 
               <p className="mt-1 text-sm text-gray-500">
-                Counter: <span className="font-medium text-gray-700">{currentQueue.counterNumber ?? counterNumber}</span>
+                Counter: <span className="font-medium text-gray-700">{activeQueue.counterNumber ?? counterNumber}</span>
               </p>
 
               <div className="mt-6 flex flex-col gap-3">
-                {currentQueue.status === "called" && (
+                {activeQueue.status === "called" && (
                   <button
                     type="button"
                     onClick={() => updateStatus("serving")}
@@ -102,7 +113,7 @@ const CallNextPage = () => {
                   </button>
                 )}
 
-                {currentQueue.status === "serving" && (
+                {activeQueue.status === "serving" && (
                   <button
                     type="button"
                     onClick={() => updateStatus("completed")}
@@ -113,7 +124,7 @@ const CallNextPage = () => {
                   </button>
                 )}
 
-                {(currentQueue.status === "called" || currentQueue.status === "serving") && (
+                {(activeQueue.status === "called" || activeQueue.status === "serving") && (
                   <button
                     type="button"
                     onClick={() => updateStatus("cancelled")}
@@ -124,9 +135,9 @@ const CallNextPage = () => {
                   </button>
                 )}
 
-                {(currentQueue.status === "completed" || currentQueue.status === "cancelled") && (
+                {(activeQueue.status === "completed" || activeQueue.status === "cancelled") && (
                   <p className="text-sm text-gray-500">
-                    This queue has been {currentQueue.status}.
+                    This queue has been {activeQueue.status}.
                   </p>
                 )}
               </div>

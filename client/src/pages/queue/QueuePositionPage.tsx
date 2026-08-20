@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchQueueById, changeQueueStatus } from "../../store/slices/queueSlice";
+import { useQueueSocket } from "../../socket/useSocket";
 
 const QueuePositionPage = () => {
   const dispatch = useAppDispatch();
   const { selectedQueue, loading, saving, error } = useAppSelector(
     (state) => state.queue
   );
+  const user = useAppSelector((state) => state.auth.user);
+  const userId = user?._id ?? user?.id;
+  useQueueSocket(userId);
 
   const [queueId, setQueueId] = useState("");
 

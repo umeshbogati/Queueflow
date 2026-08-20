@@ -23,7 +23,7 @@ export const createDepartmentController = async (
             res.status(400).json({
                 success: false,
                 message: "Validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }
@@ -124,12 +124,26 @@ export const updateDepartmentController = async (
             res.status(400).json({
                 success: false,
                 message: "Validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }
 
-        const department = await updateDepartment(id, validation.data);
+        const raw = validation.data;
+        const data: {
+            name?: string;
+            prefix?: string;
+            branch?: string;
+            description?: string;
+            isActive?: boolean;
+        } = {};
+        for (const [key, value] of Object.entries(raw)) {
+            if (value !== undefined) {
+                (data as Record<string, unknown>)[key] = value;
+            }
+        }
+
+        const department = await updateDepartment(id, data);
 
         res.status(200).json({
             success: true,

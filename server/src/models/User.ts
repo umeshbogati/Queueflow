@@ -1,4 +1,6 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose from "mongoose";
+import type { Document } from "mongoose";
+const { Schema } = mongoose;
 
 export interface IUser extends Document {
     name: string;

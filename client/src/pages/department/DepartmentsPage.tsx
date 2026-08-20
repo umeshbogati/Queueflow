@@ -7,9 +7,11 @@ import {
   addDepartment,
   clearDepartmentError,
 } from "../../store/slices/departmentSlice";
+import { useAdminSocket } from "../../socket/useSocket";
 
 const DepartmentPage = () => {
   const dispatch = useAppDispatch();
+  useAdminSocket();
 
   const { departments, loading: deptLoading, saving, error: deptError } = useAppSelector(
     (state) => state.department
@@ -53,6 +55,7 @@ const DepartmentPage = () => {
       addDepartment({
         name: name.trim(),
         branch: branchId,
+        ...(description.trim() ? { description: description.trim() } : {}),
       })
     );
 

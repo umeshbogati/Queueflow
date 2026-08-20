@@ -23,7 +23,7 @@ export const createBranchController = async (
             res.status(400).json({
                 success: false,
                 message: "Validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }
@@ -117,7 +117,7 @@ export const updateBranchController = async (
             res.status(400).json({
                 success: false,
                 message: "Validation failed",
-                errors: validation.error.flatten(),
+                 errors: validation.error.format(),
             });
             return;
         }

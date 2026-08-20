@@ -18,11 +18,15 @@ export interface Department {
 export interface CreateDepartmentData {
   name: string;
   branch: string;
+  prefix?: string;
+  description?: string;
 }
 
 export interface UpdateDepartmentData {
   name?: string;
   branch?: string;
+  prefix?: string;
+  description?: string;
   isActive?: boolean;
 }
 
@@ -50,7 +54,7 @@ export const updateDepartment = async (
   id: string,
   data: UpdateDepartmentData
 ) => {
-  const response = await api.put(
+  const response = await api.patch(
     `/departments/${id}`,
     data
   );

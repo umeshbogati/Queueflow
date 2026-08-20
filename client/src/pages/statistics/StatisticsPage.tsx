@@ -2,10 +2,12 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchQueueStatistics } from "../../store/slices/queueSlice";
+import { useAdminSocket } from "../../socket/useSocket";
 
 const StatisticsPage = () => {
   const dispatch = useAppDispatch();
   const { stats, loading, error } = useAppSelector((state) => state.queue);
+  useAdminSocket();
 
   useEffect(() => {
     dispatch(fetchQueueStatistics());

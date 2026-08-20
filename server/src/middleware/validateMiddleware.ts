@@ -20,7 +20,11 @@ export const validate = (schema: ZodSchema) => {
                 })),
             });
         }
-        req.body = result.data;
+        if (typeof req.body === "object" && req.body !== null && typeof result.data === "object" && result.data !== null) {
+            req.body = { ...req.body, ...(result.data as Record<string, unknown>) };
+        } else {
+            req.body = result.data;
+        }
         next();
     };
 };

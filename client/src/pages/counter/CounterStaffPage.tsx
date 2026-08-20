@@ -1,7 +1,16 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useAppSelector } from "../../store/hooks";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchQueues } from "../../store/slices/queueSlice";
+import { useAdminSocket } from "../../socket/useSocket";
 
 const CounterStaffPage = () => {
+  const dispatch = useAppDispatch();
+  useAdminSocket();
+
+  useEffect(() => {
+    dispatch(fetchQueues());
+  }, [dispatch]);
   const counterNumber = useAppSelector(
     (state) => state.counter.currentCounterNumber
   );

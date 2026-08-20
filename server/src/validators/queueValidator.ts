@@ -1,5 +1,4 @@
 import { z } from "zod";
-import Branch from "../models/Branch.js";
 
 export const createQueueSchema = z.object({
     branch: z.string()

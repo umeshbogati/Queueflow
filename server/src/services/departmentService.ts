@@ -1,13 +1,15 @@
 import mongoose from "mongoose";
 import Department from "../models/Department.js";
 import Branch from "../models/Branch.js";
+import { emitDepartmentCreated, emitDepartmentUpdated, emitDepartmentDeleted } from "../sockets/emitter.js";
+import type { DepartmentData } from "../sockets/socketTypes.js";
 
 export const createDepartment = async (
     name: string,
     branch: string,
-    prefix?: string | undefined,
-    description?: string | undefined,
-    isActive?: boolean | undefined
+    prefix?: string,
+    description?: string,
+    isActive?: boolean
 ) => {
     if (!mongoose.Types.ObjectId.isValid(branch)) {
         throw new Error("Invalid branch ID");
@@ -52,6 +54,17 @@ export const createDepartment = async (
 
     const department = await Department.create(departmentData);
 
+    const branchRef = department.branch as unknown as mongoose.Types.ObjectId;
+    const deptData: DepartmentData = {
+        _id: department._id.toString(),
+        name: department.name,
+        branch: branchRef.toString(),
+        isActive: department.isActive,
+    };
+    if (department.prefix !== undefined) deptData.prefix = department.prefix;
+    if (department.description !== undefined) deptData.description = department.description;
+    emitDepartmentCreated(deptData);
+
     return department;
 };
 
@@ -83,11 +96,11 @@ export const getDepartmentById = async (id: string) => {
 export const updateDepartment = async (
     id: string,
     data: {
-        name?: string | undefined;
-        prefix?: string | undefined;
-        branch?: string | undefined;
-        description?: string | undefined;
-        isActive?: boolean | undefined;
+        name?: string;
+        prefix?: string;
+        branch?: string;
+        description?: string;
+        isActive?: boolean;
     }
 ) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -128,7 +141,20 @@ export const updateDepartment = async (
     if (data.description !== undefined) department.description = data.description;
     if (data.isActive !== undefined) department.isActive = data.isActive;
 
-    return await department.save();
+    const result = await department.save();
+
+    const resultBranch = result.branch as unknown as mongoose.Types.ObjectId;
+    const updatedData: DepartmentData = {
+        _id: result._id.toString(),
+        name: result.name,
+        branch: resultBranch.toString(),
+        isActive: result.isActive,
+    };
+    if (result.prefix !== undefined) updatedData.prefix = result.prefix;
+    if (result.description !== undefined) updatedData.description = result.description;
+    emitDepartmentUpdated(updatedData);
+
+    return result;
 };
 
 export const deleteDepartment = async (id: string) => {
@@ -143,6 +169,8 @@ export const deleteDepartment = async (id: string) => {
     }
 
     await department.deleteOne();
+
+    emitDepartmentDeleted(id);
 
     return {
         message: "Department deleted successfully",

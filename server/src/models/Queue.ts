@@ -1,4 +1,6 @@
-import mongoose,{ Document, Schema, Types } from "mongoose";
+import mongoose from "mongoose";
+import type { Document, Types } from "mongoose";
+const { Schema } = mongoose;
 
 export type QueueStatus = 
 | "waiting"

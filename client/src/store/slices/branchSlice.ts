@@ -211,6 +211,31 @@ const branchSlice = createSlice({
     ) => {
       state.error = null;
     },
+
+    applyBranchCreated: (state, action) => {
+      const branch = action.payload as Branch;
+      const exists = state.branches.find((b) => b._id === branch._id);
+      if (!exists) {
+        state.branches.unshift(branch);
+      }
+    },
+    applyBranchUpdated: (state, action) => {
+      const branch = action.payload as Branch;
+      const index = state.branches.findIndex((b) => b._id === branch._id);
+      if (index !== -1) {
+        state.branches[index] = branch;
+      }
+      if (state.selectedBranch?._id === branch._id) {
+        state.selectedBranch = branch;
+      }
+    },
+    applyBranchDeleted: (state, action) => {
+      const id = action.payload as string;
+      state.branches = state.branches.filter((b) => b._id !== id);
+      if (state.selectedBranch?._id === id) {
+        state.selectedBranch = null;
+      }
+    },
   },
 
   extraReducers: (
@@ -390,6 +415,9 @@ const branchSlice = createSlice({
 export const {
   clearSelectedBranch,
   clearBranchError,
+  applyBranchCreated,
+  applyBranchUpdated,
+  applyBranchDeleted,
 } = branchSlice.actions;
 
 export default branchSlice.reducer;

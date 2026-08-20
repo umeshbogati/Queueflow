@@ -1,4 +1,5 @@
 import Branch from "../models/Branch.js";
+import { emitBranchCreated, emitBranchUpdated, emitBranchDeleted } from "../sockets/emitter.js";
 
 export const createBranch = async (
     name: string,
@@ -15,6 +16,13 @@ export const createBranch = async (
     const branch = await Branch.create({
         name,
         location,
+    });
+
+    emitBranchCreated({
+        _id: branch._id.toString(),
+        name: branch.name,
+        location: branch.location,
+        isActive: branch.isActive,
     });
 
     return branch;
@@ -56,6 +64,13 @@ export const updateBranch = async (
 
     await branch.save();
 
+    emitBranchUpdated({
+        _id: branch._id.toString(),
+        name: branch.name,
+        location: branch.location,
+        isActive: branch.isActive,
+    });
+
     return branch;
 };
 
@@ -67,6 +82,8 @@ export const deleteBranch = async (id: string) => {
     }
 
     await Branch.findByIdAndDelete(id);
+
+    emitBranchDeleted(id);
 
     return { message: "Branch deleted successfully" };
 };

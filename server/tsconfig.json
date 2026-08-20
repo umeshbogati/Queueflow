@@ -10,11 +10,7 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "es2022",
-    "types": [],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "types": ["node"],
 
     // Other Outputs
     "sourceMap": true,
