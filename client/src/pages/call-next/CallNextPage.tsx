@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { callNext, changeQueueStatus, fetchQueues } from "../../store/slices/queueSlice";
 import { useAdminSocket } from "../../socket/useSocket";
 
+// CallNextPage: Admin page for calling the next customer in the queue
 const CallNextPage = () => {
   const dispatch = useAppDispatch();
   useAdminSocket();
@@ -23,7 +24,7 @@ const CallNextPage = () => {
   );
 
   const handleCallNext = () => {
-    dispatch(callNext(counterNumber));
+    dispatch(callNext({ counterNumber }));
   };
 
   const updateStatus = (status: "serving" | "completed" | "cancelled") => {

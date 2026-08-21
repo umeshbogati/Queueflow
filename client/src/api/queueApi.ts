@@ -53,10 +53,13 @@ export const createQueue = async (data: CreateQueueData) => {
   return response.data;
 };
 
-export const callNextQueue = async (counterNumber: number) => {
-  const response = await api.patch("/queues/call-next", {
-    counterNumber,
-  });
+export interface CallNextData {
+  counterNumber?: number;
+  departmentId?: string;
+}
+
+export const callNextQueue = async (data: CallNextData = {}) => {
+  const response = await api.patch("/queues/call-next", data);
   return response.data;
 };
 
@@ -65,11 +68,6 @@ export const updateQueueStatus = async (
   data: { status: QueueStatus; counterNumber?: number }
 ) => {
   const response = await api.patch(`/queues/${id}/status`, data);
-  return response.data;
-};
-
-export const deleteQueue = async (id: string) => {
-  const response = await api.delete(`/queues/${id}`);
   return response.data;
 };
 

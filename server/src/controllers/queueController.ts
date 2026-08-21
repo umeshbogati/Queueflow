@@ -12,6 +12,7 @@ import {
 } from "../services/queueService.js";
 import {
     createQueueSchema,
+    callNextSchema,
     updateQueueStatusSchema,
 } from "../validators/queueValidator.js";
 
@@ -53,7 +54,6 @@ export const createQueueController = async (
             data: queue,
         });
     } catch (error: any) {
-        console.error("Create queue error:", error);
         res.status(400).json({
             success: false,
             message: error.message || "Failed to create queue",
@@ -138,8 +138,17 @@ export const callNextController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const { counterNumber } = req.body || {};
-        const queue = await callNextQueue(counterNumber);
+        const validation = callNextSchema.safeParse(req.body || {});
+        if (!validation.success) {
+            res.status(400).json({
+                success: false,
+                message: "Validation failed",
+                errors: validation.error.format(),
+            });
+            return;
+        }
+
+        const queue = await callNextQueue(validation.data);
 
         res.status(200).json({
             success: true,
@@ -200,8 +209,8 @@ export const updateQueueStatusController = async (
             return;
         }
 
-        const { counterNumber } = req.body || {};
-        const queue = await updateQueueStatus(id, validation.data.status, counterNumber);
+        const { status, counterNumber } = validation.data;
+        const queue = await updateQueueStatus(id, status, counterNumber);
 
         res.status(200).json({
             success: true,

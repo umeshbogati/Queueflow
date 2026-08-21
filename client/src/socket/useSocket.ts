@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { socket, connectSocket, disconnectSocket, joinBranch, leaveBranch, joinAdmin, leaveAdmin, joinUser, leaveUser } from "../socket/socket";
+import { socket, connectSocket, disconnectSocket, joinAdmin, leaveAdmin, joinUser, leaveUser } from "../socket/socket";
 import type { Queue, QueueStats } from "../api/queueApi";
 import type { Branch } from "../api/branchApi";
 import type { Department } from "../api/departmentApi";
+import type { Notification } from "../api/notificationApi";
 
 const useSocketConnected = () => {
     const [isConnected, setIsConnected] = useState(socket.connected);
@@ -53,42 +54,6 @@ export const useSocketConnection = () => {
     }, [isConnected, user]);
 
     return { socket, isConnected };
-};
-
-export const useBranchSocket = (branchId: string | undefined) => {
-    const dispatch = useAppDispatch();
-    const isConnected = useSocketConnected();
-
-    useEffect(() => {
-        if (!branchId || !isConnected) return;
-
-        joinBranch(branchId);
-
-        const unsubQueueCreated = (data: Queue) => {
-            dispatch({ type: "queue/fetchQueues/fulfilled", payload: [data] });
-        };
-
-        const unsubQueueUpdated = (data: Queue) => {
-            dispatch({ type: "queue/applyQueueUpdate", payload: data });
-        };
-
-        const unsubStatsUpdated = (data: QueueStats) => {
-            dispatch({ type: "queue/applyStatsUpdate", payload: data });
-        };
-
-        socket.on("queue:created", unsubQueueCreated);
-        socket.on("queue:updated", unsubQueueUpdated);
-        socket.on("queue:called", unsubQueueUpdated);
-        socket.on("stats:updated", unsubStatsUpdated);
-
-        return () => {
-            leaveBranch(branchId);
-            socket.off("queue:created", unsubQueueCreated);
-            socket.off("queue:updated", unsubQueueUpdated);
-            socket.off("queue:called", unsubQueueUpdated);
-            socket.off("stats:updated", unsubStatsUpdated);
-        };
-    }, [branchId, isConnected, dispatch]);
 };
 
 export const useQueueSocket = (userId?: string) => {
@@ -178,6 +143,27 @@ export const useAdminSocket = () => {
             socket.off("queue:updated", handleQueueUpdated);
             socket.off("queue:called", handleQueueUpdated);
             socket.off("stats:updated", handleStatsUpdated);
+        };
+    }, [isConnected, dispatch]);
+};
+
+// This hook listens for new notifications and updates the Redux store accordingly
+export const useNotificationSocket = () => {
+    const dispatch = useAppDispatch();
+    const isConnected = useSocketConnected();
+
+    useEffect(() => {
+        if (!isConnected) return;
+
+        const handleNotificationNew = (data: Notification) => {
+            // add to the bell list + bump unread badge
+            dispatch({ type: "notification/applyNewNotification", payload: data });
+        };
+
+        socket.on("notification:new", handleNotificationNew);
+
+        return () => {
+            socket.off("notification:new", handleNotificationNew);
         };
     }, [isConnected, dispatch]);
 };

@@ -9,6 +9,8 @@ export const SOCKET_EVENTS = {
     DEPARTMENT_UPDATED: "department:updated",
     DEPARTMENT_DELETED: "department:deleted",
     STATS_UPDATED: "stats:updated",
+    // real-time push of a newly created notification to one user's private room
+    NOTIFICATION_NEW: "notification:new",
 } as const;
 
 export const SOCKET_ROOMS = {

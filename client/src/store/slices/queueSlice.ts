@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
   createQueue,
-  deleteQueue,
   getQueueById,
   getQueueStats,
   getQueues,
@@ -9,6 +8,7 @@ import {
   callNextQueue,
 } from "../../api/queueApi";
 import type {
+  CallNextData,
   CreateQueueData,
   Queue,
   QueueStats,
@@ -79,11 +79,11 @@ export const addQueue = createAsyncThunk<
 
 export const callNext = createAsyncThunk<
   Queue | null,
-  number,
+  CallNextData | undefined,
   { rejectValue: string }
->("queue/callNext", async (counterNumber, { rejectWithValue }) => {
+>("queue/callNext", async (data, { rejectWithValue }) => {
   try {
-    const response = await callNextQueue(counterNumber);
+    const response = await callNextQueue(data);
     return unwrap<Queue | null>(response);
   } catch (error: unknown) {
     return rejectWithValue(
@@ -112,19 +112,6 @@ export const changeQueueStatus = createAsyncThunk<
   }
 });
 
-export const removeQueue = createAsyncThunk<
-  string,
-  string,
-  { rejectValue: string }
->("queue/removeQueue", async (id, { rejectWithValue }) => {
-  try {
-    await deleteQueue(id);
-    return id;
-  } catch (error: unknown) {
-    return rejectWithValue(getMessage(error, "Failed to delete queue."));
-  }
-});
-
 export const fetchQueueStatistics = createAsyncThunk<
   QueueStats,
   void,
@@ -144,12 +131,6 @@ const queueSlice = createSlice({
   name: "queue",
   initialState,
   reducers: {
-    clearSelectedQueue: (state) => {
-      state.selectedQueue = null;
-    },
-    clearCurrentQueue: (state) => {
-      state.currentQueue = null;
-    },
     clearQueueError: (state) => {
       state.error = null;
     },
@@ -247,34 +228,6 @@ const queueSlice = createSlice({
         state.saving = false;
         state.error = action.payload ?? "Failed to update queue status.";
       })
-      .addCase(removeQueue.pending, (state) => {
-        state.saving = true;
-        state.error = null;
-      })
-      .addCase(removeQueue.fulfilled, (state, action) => {
-        state.saving = false;
-        state.queues = state.queues.filter(
-          (queue) => queue._id !== action.payload
-        );
-        if (state.selectedQueue?._id === action.payload) {
-          state.selectedQueue = null;
-        }
-        if (state.currentQueue?._id === action.payload) {
-          state.currentQueue = null;
-        }
-      })
-      .addCase(removeQueue.rejected, (state, action) => {
-        state.saving = false;
-        state.error = action.payload ?? "Failed to delete queue.";
-      })
-      .addCase(fetchQueueStatistics.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchQueueStatistics.fulfilled, (state, action) => {
-        state.loading = false;
-        state.stats = action.payload;
-      })
       .addCase(fetchQueueStatistics.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Failed to load queue statistics.";
@@ -283,8 +236,6 @@ const queueSlice = createSlice({
 });
 
 export const {
-  clearSelectedQueue,
-  clearCurrentQueue,
   clearQueueError,
   applyQueueUpdate,
   applyStatsUpdate,

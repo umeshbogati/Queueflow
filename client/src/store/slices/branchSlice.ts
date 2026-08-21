@@ -6,7 +6,6 @@ import {
 import {
   createBranch,
   deleteBranch,
-  getBranchById,
   getBranches,
   updateBranch,
 } from "../../api/branchApi";
@@ -21,7 +20,6 @@ import { unwrap, getMessage } from "../utils";
 
 interface BranchState {
   branches: Branch[];
-  selectedBranch: Branch | null;
 
   loading: boolean;
   saving: boolean;
@@ -31,7 +29,6 @@ interface BranchState {
 
 const initialState: BranchState = {
   branches: [],
-  selectedBranch: null,
 
   loading: false,
   saving: false,
@@ -65,36 +62,6 @@ export const fetchBranches =
           getMessage(
             error,
             "Failed to load branches."
-          )
-        );
-      }
-    }
-  );
-
-export const fetchBranchById =
-  createAsyncThunk<
-    Branch,
-    string,
-    { rejectValue: string }
-  >(
-    "branch/fetchBranchById",
-
-    async (
-      id,
-      { rejectWithValue }
-    ) => {
-      try {
-        const response =
-          await getBranchById(id);
-
-        return unwrap<Branch>(
-          response
-        );
-      } catch (error: unknown) {
-        return rejectWithValue(
-          getMessage(
-            error,
-            "Failed to load branch."
           )
         );
       }
@@ -200,12 +167,6 @@ const branchSlice = createSlice({
   initialState,
 
   reducers: {
-    clearSelectedBranch: (
-      state
-    ) => {
-      state.selectedBranch = null;
-    },
-
     clearBranchError: (
       state
     ) => {
@@ -225,16 +186,10 @@ const branchSlice = createSlice({
       if (index !== -1) {
         state.branches[index] = branch;
       }
-      if (state.selectedBranch?._id === branch._id) {
-        state.selectedBranch = branch;
-      }
     },
     applyBranchDeleted: (state, action) => {
       const id = action.payload as string;
       state.branches = state.branches.filter((b) => b._id !== id);
-      if (state.selectedBranch?._id === id) {
-        state.selectedBranch = null;
-      }
     },
   },
 
@@ -267,33 +222,6 @@ const branchSlice = createSlice({
           state.error =
             action.payload ??
             "Failed to load branches.";
-        }
-      )
-
-      .addCase(
-        fetchBranchById.pending,
-        (state) => {
-          state.loading = true;
-          state.error = null;
-        }
-      )
-
-      .addCase(
-        fetchBranchById.fulfilled,
-        (state, action) => {
-          state.loading = false;
-          state.selectedBranch =
-            action.payload;
-        }
-      )
-
-      .addCase(
-        fetchBranchById.rejected,
-        (state, action) => {
-          state.loading = false;
-          state.error =
-            action.payload ??
-            "Failed to load branch.";
         }
       )
 
@@ -349,14 +277,6 @@ const branchSlice = createSlice({
             state.branches[index] =
               action.payload;
           }
-
-          if (
-            state.selectedBranch?._id ===
-            action.payload._id
-          ) {
-            state.selectedBranch =
-              action.payload;
-          }
         }
       )
 
@@ -389,14 +309,6 @@ const branchSlice = createSlice({
                 branch._id !==
                 action.payload
             );
-
-          if (
-            state.selectedBranch?._id ===
-            action.payload
-          ) {
-            state.selectedBranch =
-              null;
-          }
         }
       )
 
@@ -413,7 +325,6 @@ const branchSlice = createSlice({
 });
 
 export const {
-  clearSelectedBranch,
   clearBranchError,
   applyBranchCreated,
   applyBranchUpdated,

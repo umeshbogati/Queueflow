@@ -3,6 +3,7 @@ import http from "http";
 import app from "./app.js";
 import { Server as SocketIOServer } from "socket.io";
 import connectDB from "./config/db.js";
+import { corsOptions } from "./config/cors.js";
 import { setupSocketHandlers } from "./sockets/socket.js";
 import type { ServerToClientEvents, ClientToServerEvents } from "./sockets/socketTypes.js";
 
@@ -12,12 +13,9 @@ const PORT = process.env.PORT || 5000;
 
 const httpServer = http.createServer(app);
 
+// Socket.IO server with CORS settings and typed events
 export const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-    cors: {
-        origin: "http://localhost:5173",
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-        credentials: true,
-    },
+    cors: corsOptions,
 });
 
 setupSocketHandlers(io);

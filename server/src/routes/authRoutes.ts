@@ -3,7 +3,6 @@ import type { Response } from "express";
 import { register, login } from "../controllers/authController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import type { AuthenticatedRequest } from "../types/auth.js";
-import { adminOnly } from "../middleware/adminMiddleware.js";
 
 
 const router = Router();
@@ -20,12 +19,6 @@ router.get("/me",protect,(
         data: {
             user: req.user,
         },
-    });
-});
-router.get("/admin-test", protect, adminOnly,(_req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Welcome Admin!"
     });
 });
 export default router;

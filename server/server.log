@@ -1,4 +1,0 @@
-◇ injected env (3) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
-MongoDB connected: 127.0.0.1
- Server is running on port 5000
-CREATE QUEUE - body: {"branch":"6a842ebd115963a6622fcc07","department":"6a842f00115963a6622fcc08"} user: 6a816aabf83aa3e5d5d56b41

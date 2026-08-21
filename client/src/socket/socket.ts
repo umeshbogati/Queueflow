@@ -3,6 +3,7 @@ import { SOCKET_EVENTS, SOCKET_EMIT } from "./socketEvents";
 import type { Queue, QueueStats } from "../api/queueApi";
 import type { Branch } from "../api/branchApi";
 import type { Department } from "../api/departmentApi";
+import type { Notification } from "../api/notificationApi";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
@@ -14,6 +15,8 @@ export const socket = io(SOCKET_URL, {
 
 export const connectSocket = () => {
     if (!socket.connected) {
+        // Server rejects unauthenticated sockets - send the JWT in the handshake
+        socket.auth = { token: localStorage.getItem("token") };
         socket.connect();
     }
 };
@@ -104,4 +107,10 @@ export const onDepartmentDeleted = (callback: (data: { _id: string }) => void) =
 export const onStatsUpdated = (callback: (data: QueueStats) => void) => {
     socket.on(SOCKET_EVENTS.STATS_UPDATED, callback);
     return () => { socket.off(SOCKET_EVENTS.STATS_UPDATED, callback); };
+};
+
+// Live push of a new notification for the logged-in user
+export const onNotificationNew = (callback: (data: Notification) => void) => {
+    socket.on(SOCKET_EVENTS.NOTIFICATION_NEW, callback);
+    return () => { socket.off(SOCKET_EVENTS.NOTIFICATION_NEW, callback); };
 };

@@ -1,43 +1,9 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { logoutUser } from "../../store/slices/authSlice";
+import { Link } from "react-router-dom";
 
 const AdminDashboardPage = () => {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const user = useAppSelector((state) => state.auth.user);
-
-  const handleLogout = () => {
-    dispatch(logoutUser()).then(() => {
-      navigate("/login");
-    });
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100">
-
-      <header className="bg-gray-900 text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Queueflow Admin
-            </h1>
-            <p className="text-sm text-gray-400">
-              Welcome, {user?.name ?? "Administrator"}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium hover:bg-red-700"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-6 py-8">
+    <div>
+      <main>
 
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900">

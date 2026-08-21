@@ -34,19 +34,18 @@ import NotFoundPage from "../pages/system/NotFoundPage";
 
 // Components
 import ProtectedRoute from "../components/ProtectedRoute";
+import MainLayout from "../components/layout/MainLayout";
 
 const AppRoutes = () => {
   return (
     
       <Routes>
 
-        {/* =========================
-            PUBLIC ROUTES
-        ========================== */}
+        
 
         <Route
           path="/"
-          element={<HomePage />}
+          element={<HomePage />}  // Public Routes
         />
 
         <Route
@@ -59,80 +58,73 @@ const AppRoutes = () => {
           element={<RegisterPage />}
         />
 
-        {/* =========================
-            PROTECTED ROUTES
-        ========================== */}
+      
 
         <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route
+              path="/dashboard"
+              element={<UserDashboardPage />}  // Protected Routes
+            />
 
-          <Route
-            path="/dashboard"
-            element={<UserDashboardPage />}
-          />
+            <Route
+              path="/branches"
+              element={<BranchPage />}
+            />
 
-          <Route
-            path="/branches"
-            element={<BranchPage />}
-          />
+            <Route
+              path="/departments"
+              element={<DepartmentPage />}
+            />
 
-          <Route
-            path="/departments"
-            element={<DepartmentPage />}
-          />
+            <Route
+              path="/queue"
+              element={<QueuePage />}
+            />
 
-          <Route
-            path="/queue"
-            element={<QueuePage />}
-          />
+            <Route
+              path="/queue-position"
+              element={<QueuePositionPage />}
+            />
 
-          <Route
-            path="/queue-position"
-            element={<QueuePositionPage />}
-          />
+            <Route
+              path="/counter"
+              element={<CounterStaffPage />}
+            />
 
-          <Route
-            path="/counter"
-            element={<CounterStaffPage />}
-          />
-
-          <Route
-            path="/call-next"
-            element={<CallNextPage />}
-          />
-
-          
-
+            <Route
+              path="/call-next"
+              element={<CallNextPage />}
+            />
+          </Route>
         </Route>
 
-        {/* =========================
-            ADMIN ROUTES
-        ========================== */}
 
         <Route
           element={
             <ProtectedRoute
-              allowedRoles={["admin", "super_admin"]}
+              allowedRoles={["admin"]}
             />
           }
         >
-          <Route
-            path="/admin"
-            element={<AdminDashboardPage />}
-          />
+          <Route element={<MainLayout />}>
+            <Route
+              path="/admin"
+              element={<AdminDashboardPage />} //Admin Routes
+            />
 
-          <Route
-            path="/statistics"
-            element={<StatisticsPage />}
-          />
+            <Route
+              path="/statistics"
+              element={<StatisticsPage />}
+            />
+          </Route>
         </Route>
 
-        {/* =========================
-            SYSTEM ROUTES
-        ========================== */}
+       
 
         <Route
           path="/loading"
-          element={<LoadingPage />}
+          element={<LoadingPage />}  // System Routes
         />
 
         <Route
@@ -145,13 +137,10 @@ const AppRoutes = () => {
           element={<EmptyPage />}
         />
 
-        {/* =========================
-            404
-        ========================== */}
-
+      
         <Route
           path="*"
-          element={<NotFoundPage />}
+          element={<NotFoundPage />} // Not Found Route return 404
         />
 
       </Routes>

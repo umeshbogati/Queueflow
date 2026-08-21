@@ -4,7 +4,7 @@ import { useAppSelector } from "../../store/hooks";
 const Sidebar = () => {
   const user = useAppSelector((state) => state.auth.user);
   const role = user?.role?.toLowerCase();
-  const isAdmin = role === "admin" || role === "super_admin";
+  const isAdmin = role === "admin";
 
   const userItems = [
     { name: "Dashboard", path: "/dashboard" },

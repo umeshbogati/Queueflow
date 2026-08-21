@@ -1,4 +1,18 @@
 import type { QueueStatus } from "../models/Queue.js";
+import type { NotificationType } from "../models/Notification.js";
+
+// Shape of a notification as it travels over the socket / REST API.
+// (Plain JSON - ObjectIds are converted to strings before sending.)
+export interface NotificationData {
+    _id: string;
+    user: string;
+    type: NotificationType;
+    title: string;
+    message: string;
+    queue?: string;
+    isRead: boolean;
+    createdAt: string;
+}
 
 export interface QueueData {
     _id: string;
@@ -52,6 +66,8 @@ export interface ServerToClientEvents {
     "department:updated": (data: DepartmentData) => void;
     "department:deleted": (data: { _id: string }) => void;
     "stats:updated": (data: QueueStatsData) => void;
+    // fired to the private `user:{id}` room whenever a notification is created
+    "notification:new": (data: NotificationData) => void;
 }
 
 export interface ClientToServerEvents {

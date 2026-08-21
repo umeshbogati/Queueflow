@@ -5,6 +5,7 @@ import branchReducer from "./slices/branchSlice";
 import departmentReducer from "./slices/departmentSlice";
 import queueReducer from "./slices/queueSlice";
 import counterReducer from "./slices/counterSlice";
+import notificationReducer from "./slices/notificationSlice";
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     department: departmentReducer,
     queue: queueReducer,
     counter: counterReducer,
+    notification: notificationReducer,
   },
 });
 

@@ -14,5 +14,3 @@ export const generateToken = (payload: TokenPayload): string => {
         expiresIn: "30d",
     });
 };
-
-export default generateToken;

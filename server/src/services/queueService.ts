@@ -5,9 +5,15 @@ import Department from "../models/Department.js";
 import { User } from "../models/User.js";
 import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated } from "../sockets/emitter.js";
 import type { QueueData } from "../sockets/socketTypes.js";
+import { createAndEmitNotification } from "./notificationService.js";
 
-const toQueueData = (q: InstanceType<typeof Queue>): QueueData => {
-    const branchRaw = q.branch as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; location?: string };
+// Local date as YYYY-MM-DD - matches Queue.date storage format
+const today = (): string => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
+const toQueueData = (q: InstanceType<typeof Queue>): QueueData => {    const branchRaw = q.branch as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; location?: string };
     const departmentRaw = q.department as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; prefix?: string };
     const customerRaw = q.customer as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name?: string };
 
@@ -82,36 +88,52 @@ export const createQueue = async ({
     }
 
     if (departmentData.branch.toString() !== branch) {
-        console.error("Branch mismatch:", {
-            deptBranch: departmentData.branch.toString(),
-            reqBranch: branch,
-        });
         throw new Error("Department does not belong to this branch");
     }
 
-    const now = new Date();
-    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-    const lastQueue = await Queue.findOne({
-        department,
-        date,
-    }).sort({
-        ticketNumber: -1,
-    });
-
-    const ticketNumber = lastQueue ? lastQueue.ticketNumber + 1 : 1;
+    const date = today();
     const prefix = departmentData.prefix || "Q";
-    const displayNumber = `${prefix}${String(ticketNumber).padStart(3, "0")}`;
 
-    const queue = await Queue.create({
-        ticketNumber,
-        displayNumber,
-        branch,
-        department,
-        customer,
-        status: "waiting",
-        date,
-    });
+    // Retry on duplicate-ticket races: two concurrent requests can read the
+    // same last ticket number; the unique {department, date, ticketNumber}
+    // index rejects the loser, so recompute and try again.
+    let queue: InstanceType<typeof Queue> | null = null;
+    const MAX_ATTEMPTS = 3;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        const lastQueue = await Queue.findOne({
+            department,
+            date,
+        }).sort({
+            ticketNumber: -1,
+        });
+
+        const ticketNumber = lastQueue ? lastQueue.ticketNumber + 1 : 1;
+        const displayNumber = `${prefix}${String(ticketNumber).padStart(3, "0")}`;
+
+        try {
+            queue = await Queue.create({
+                ticketNumber,
+                displayNumber,
+                branch,
+                department,
+                customer,
+                status: "waiting",
+                date,
+            });
+            break;
+        } catch (error) {
+            const isDuplicateKey =
+                (error as { code?: number })?.code === 11000;
+            if (!isDuplicateKey || attempt === MAX_ATTEMPTS - 1) {
+                throw new Error("Ticket could not be created, please try again");
+            }
+        }
+    }
+
+    if (!queue) {
+        throw new Error("Ticket could not be created, please try again");
+    }
 
     const populated = await Queue.findById(queue._id)
         .populate("branch", "name location")
@@ -165,8 +187,31 @@ export const getQueueById = async (queueId: string) => {
     return queue;
 };
 
-export const callNextQueue = async (counterNumber?: number) => {
-    const queue = await Queue.findOne({ status: "waiting" })
+interface CallNextOptions {
+    counterNumber?: number | undefined;
+    branchId?: string | undefined;
+    departmentId?: string | undefined;
+}
+
+export const callNextQueue = async ({
+    counterNumber,
+    branchId,
+    departmentId,
+}: CallNextOptions = {}) => {
+    // Only call tickets issued TODAY, scoped to a department (preferred)
+    // or branch when provided - never pull tickets across branches/departments.
+    const filter: Record<string, unknown> = {
+        status: "waiting",
+        date: today(),
+    };
+
+    if (departmentId && mongoose.Types.ObjectId.isValid(departmentId)) {
+        filter.department = departmentId;
+    } else if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+        filter.branch = branchId;
+    }
+
+    const queue = await Queue.findOne(filter)
         .sort({ ticketNumber: 1 })
         .populate("branch", "name location")
         .populate("department", "name prefix");
@@ -187,9 +232,21 @@ export const callNextQueue = async (counterNumber?: number) => {
         .populate("department", "name prefix")
         .populate("customer", "name");
 
-    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-    emitQueueCalled(toQueueData(populated!), branchId, deptId);
+    const queueBranchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
+    const queueDeptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
+    emitQueueCalled(toQueueData(populated!), queueBranchId, queueDeptId);
+
+    // Notify the customer in real time: their ticket was just called.
+    // queue.customer is still a plain ObjectId here (only `populated` has it expanded).
+    await createAndEmitNotification({
+        userId: queue.customer.toString(),
+        type: "queue_called",
+        title: "It's your turn!",
+        message: queue.counterNumber
+            ? `Ticket ${queue.displayNumber} - please go to Counter ${queue.counterNumber}`
+            : `Ticket ${queue.displayNumber} - please proceed to the counter`,
+        queueId: queue._id.toString(),
+    });
 
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
@@ -207,14 +264,17 @@ export interface QueueStats {
 }
 
 export const getQueueStats = async (): Promise<QueueStats> => {
+    // Stats reflect today's activity, not the lifetime of the system
+    const date = today();
+
     const [total, waiting, called, serving, completed, cancelled] =
         await Promise.all([
-            Queue.countDocuments(),
-            Queue.countDocuments({ status: "waiting" }),
-            Queue.countDocuments({ status: "called" }),
-            Queue.countDocuments({ status: "serving" }),
-            Queue.countDocuments({ status: "completed" }),
-            Queue.countDocuments({ status: "cancelled" }),
+            Queue.countDocuments({ date }),
+            Queue.countDocuments({ date, status: "waiting" }),
+            Queue.countDocuments({ date, status: "called" }),
+            Queue.countDocuments({ date, status: "serving" }),
+            Queue.countDocuments({ date, status: "completed" }),
+            Queue.countDocuments({ date, status: "cancelled" }),
         ]);
 
     return { total, waiting, called, serving, completed, cancelled };
@@ -270,6 +330,40 @@ export const updateQueueStatus = async (
     const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
     const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
     emitQueueUpdated(toQueueData(populated!), branchId, deptId);
+
+    // Map each staff action to a customer-facing notification.
+    // ("called" via this path also notifies, in case admin calls manually.)
+    const statusNotifications: Record<
+        Exclude<QueueStatus, "waiting">,
+        { type: "queue_called" | "queue_serving" | "queue_completed" | "queue_cancelled"; title: string; message: string }
+    > = {
+        called: {
+            type: "queue_called",
+            title: "It's your turn!",
+            message: `Ticket ${queue.displayNumber} - please proceed to the counter`,
+        },
+        serving: {
+            type: "queue_serving",
+            title: "You're being served",
+            message: `Ticket ${queue.displayNumber} is now being served${queue.counterNumber ? ` at Counter ${queue.counterNumber}` : ""}`,
+        },
+        completed: {
+            type: "queue_completed",
+            title: "Visit complete",
+            message: `Ticket ${queue.displayNumber} is completed. Thank you!`,
+        },
+        cancelled: {
+            type: "queue_cancelled",
+            title: "Ticket cancelled",
+            message: `Your ticket ${queue.displayNumber} was cancelled. Please contact staff if this is unexpected.`,
+        },
+    };
+
+    await createAndEmitNotification({
+        userId: queue.customer.toString(),
+        ...statusNotifications[status],
+        queueId: queue._id.toString(),
+    });
 
     const stats = await getQueueStats();
     emitStatsUpdated(stats);

@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchQueues } from "../../store/slices/queueSlice";
 import { useAdminSocket } from "../../socket/useSocket";
 
+// CounterStaffPage: Staff page for managing customers waiting at their counter
 const CounterStaffPage = () => {
   const dispatch = useAppDispatch();
   useAdminSocket();

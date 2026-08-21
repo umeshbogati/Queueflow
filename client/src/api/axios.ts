@@ -11,9 +11,8 @@ const api = axios.create({
 });
 
 
-// ==================================
 // REQUEST INTERCEPTOR
-// ==================================
+
 
 api.interceptors.request.use(
   (config) => {
@@ -33,9 +32,8 @@ api.interceptors.request.use(
 );
 
 
-// ==================================
+
 // RESPONSE INTERCEPTOR
-// ==================================
 
 api.interceptors.response.use(
   (response) => {

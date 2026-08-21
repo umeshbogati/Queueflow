@@ -8,6 +8,12 @@ export const createQueueSchema = z.object({
     .min(1, "Department ID is required"),
 });
 
+export const callNextSchema = z.object({
+    counterNumber: z.number().int().positive().max(999).optional(),
+    branchId: z.string().min(1).optional(),
+    departmentId: z.string().min(1).optional(),
+});
+
 export const updateQueueStatusSchema = z.object({
     status: z.enum([
         "called",
@@ -15,4 +21,6 @@ export const updateQueueStatusSchema = z.object({
         "completed",
         "cancelled",
     ]),
+
+    counterNumber: z.number().int().positive().max(999).optional(),
 });

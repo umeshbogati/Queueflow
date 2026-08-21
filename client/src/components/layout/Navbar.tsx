@@ -1,15 +1,21 @@
 import { Link, useNavigate } from "react-router-dom";
-import { getUser, getUserRole, logout } from "../../utils/auth";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { logoutUser } from "../../store/slices/authSlice";
+import NotificationBell from "../notifications/NotificationBell";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const user = getUser();
-  const role = getUserRole();
-  const isAdmin = role?.toLowerCase() === "admin" || role?.toLowerCase() === "super_admin";
+  const dispatch = useAppDispatch();
+  // Read from Redux so the header always matches the token in use,
+  // even when another tab overwrites localStorage
+  const user = useAppSelector((state) => state.auth.user);
+  const role = user?.role ?? null;
+  const isAdmin = role?.toLowerCase() === "admin";
 
   const handleLogout = () => {
-    logout();
-    navigate("/login");
+    dispatch(logoutUser()).then(() => {
+      navigate("/login");
+    });
   };
 
   return (
@@ -36,6 +42,9 @@ const Navbar = () => {
           >
             {isAdmin ? "Admin" : "User"}
           </span>
+
+          {/* Bell + dropdown + live toast for queue updates */}
+          <NotificationBell />
 
           <button
             type="button"
