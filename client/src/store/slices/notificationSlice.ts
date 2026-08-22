@@ -12,6 +12,7 @@ import { unwrap, getMessage } from "../utils";
 interface NotificationState {
   items: Notification[];      // latest notifications (newest first)
   unreadCount: number;        // powers the red badge on the bell
+  lastLive: Notification | null; // newest SOCKET-delivered notification (powers the toast)
   loading: boolean;
   error: string | null;
 }
@@ -19,6 +20,7 @@ interface NotificationState {
 const initialState: NotificationState = {
   items: [],
   unreadCount: 0,
+  lastLive: null,
   loading: false,
   error: null,
 };
@@ -96,6 +98,9 @@ const notificationSlice = createSlice({
         // keep the list capped at 20 to match the REST endpoint
         if (state.items.length > 20) state.items.pop();
       }
+      // Mark it as "just arrived live". REST history loads never touch
+      // this field, so old history can never swallow a fresh toast.
+      state.lastLive = action.payload;
       if (!action.payload.isRead) {
         state.unreadCount += 1;
       }

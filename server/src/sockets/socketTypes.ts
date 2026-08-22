@@ -55,6 +55,13 @@ export interface QueueStatsData {
     cancelled: number;
 }
 
+// Live position of one waiting ticket, pushed to its owner's private room
+export interface QueuePositionData {
+    queueId: string;
+    department: string;
+    position: number; // 1 = next in line
+}
+
 export interface ServerToClientEvents {
     "queue:created": (data: QueueData) => void;
     "queue:updated": (data: QueueData) => void;
@@ -66,6 +73,8 @@ export interface ServerToClientEvents {
     "department:updated": (data: DepartmentData) => void;
     "department:deleted": (data: { _id: string }) => void;
     "stats:updated": (data: QueueStatsData) => void;
+    // fired to a waiting customer's private room whenever their spot changes
+    "queue:position": (data: QueuePositionData) => void;
     // fired to the private `user:{id}` room whenever a notification is created
     "notification:new": (data: NotificationData) => void;
 }

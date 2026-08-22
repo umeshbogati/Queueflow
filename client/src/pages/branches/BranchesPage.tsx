@@ -75,6 +75,17 @@ const BranchesPage = () => {
     }
   };
 
+  const handleToggleActive = async (branch: Branch) => {
+    const result = await dispatch(
+      editBranch({ id: branch._id, data: { isActive: !branch.isActive } })
+    );
+    if (editBranch.fulfilled.match(result)) {
+      setSuccess(
+        `"${result.payload.name}" is now ${result.payload.isActive ? "active" : "inactive"}.`
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-6xl">
@@ -196,8 +207,8 @@ const BranchesPage = () => {
                         </div>
                       </div>
                     ) : deleteConfirmId === branch._id ? (
-                      <div>
-                        <p className="text-sm text-red-600">Delete "{branch.name}"? This cannot be undone.</p>
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                        <p className="text-sm font-medium text-red-700">Delete "{branch.name}"? This cannot be undone.</p>
                         <div className="mt-3 flex gap-2">
                           <button
                             onClick={() => handleDelete(branch._id)}
@@ -215,12 +226,12 @@ const BranchesPage = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
                           <h3 className="text-lg font-bold text-gray-900">{branch.name}</h3>
                           <p className="mt-1 text-sm text-gray-500">Location: {branch.location}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
                               branch.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
@@ -228,6 +239,17 @@ const BranchesPage = () => {
                           >
                             {branch.isActive ? "Active" : "Inactive"}
                           </span>
+                          <button
+                            onClick={() => handleToggleActive(branch)}
+                            disabled={saving}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                              branch.isActive
+                                ? "border border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                                : "border border-green-300 text-green-700 hover:bg-green-50"
+                            }`}
+                          >
+                            {branch.isActive ? "Deactivate" : "Activate"}
+                          </button>
                           <button
                             onClick={() => startEdit(branch)}
                             className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"

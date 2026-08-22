@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { callNext, changeQueueStatus, fetchQueues } from "../../store/slices/queueSlice";
+import { callNext, changeQueueStatus, fetchQueues, clearQueueError } from "../../store/slices/queueSlice";
+import { fetchDepartments } from "../../store/slices/departmentSlice";
 import { useAdminSocket } from "../../socket/useSocket";
 
 // CallNextPage: Admin page for calling the next customer in the queue
@@ -11,20 +12,40 @@ const CallNextPage = () => {
   const { currentQueue, queues, saving, error } = useAppSelector(
     (state) => state.queue
   );
+  const { departments } = useAppSelector((state) => state.department);
   const counterNumber = useAppSelector(
     (state) => state.counter.currentCounterNumber
   );
 
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+
   useEffect(() => {
     dispatch(fetchQueues());
+    dispatch(fetchDepartments());
+  }, [dispatch]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearQueueError());
+    };
   }, [dispatch]);
 
   const activeQueue = currentQueue ?? queues.find(
     (q) => q.status === "called" || q.status === "serving"
   );
 
+  const activeDepartments = departments.filter(
+    (dept) => dept.isActive !== false
+  );
+
   const handleCallNext = () => {
-    dispatch(callNext({ counterNumber }));
+    dispatch(
+      callNext({
+        counterNumber,
+        // Empty selection means: serve from any department
+        ...(selectedDepartmentId ? { departmentId: selectedDepartmentId } : {}),
+      })
+    );
   };
 
   const updateStatus = (status: "serving" | "completed" | "cancelled") => {
@@ -60,6 +81,33 @@ const CallNextPage = () => {
             </label>
             <p className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-2xl font-bold">
               {counterNumber}
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <label
+              htmlFor="call-next-department"
+              className="mb-2 block text-left text-sm font-medium text-gray-700"
+            >
+              Serving Department
+            </label>
+            <select
+              id="call-next-department"
+              value={selectedDepartmentId}
+              onChange={(e) => setSelectedDepartmentId(e.target.value)}
+              disabled={saving}
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">All departments</option>
+              {activeDepartments.map((dept) => (
+                <option key={dept._id} value={dept._id}>
+                  {dept.name}
+                  {dept.branch?.name ? ` — ${dept.branch.name}` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-left text-xs text-gray-400">
+              Pick a department to serve only its waiting tickets.
             </p>
           </div>
 

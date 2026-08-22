@@ -35,22 +35,38 @@ export const useSocketConnection = () => {
         } else {
             disconnectSocket();
         }
-
-        return () => {
-            disconnectSocket();
-        };
+        // No disconnect-on-cleanup here: StrictMode remounts effects twice,
+        // and tearing down a still-connecting socket caused missed rooms.
+        // Logout is covered because token changes -> else branch disconnects.
     }, [token]);
 
     useEffect(() => {
         if (!isConnected || !user) return;
 
-        if (user.role === "admin") {
-            joinAdmin();
-            return () => { leaveAdmin(); };
-        }
+        const userId = user._id ?? user.id;
+        if (!userId) return;
 
-        joinUser(user._id ?? user.id!);
-        return () => { leaveUser(user._id ?? user.id!); };
+        const joinRooms = () => {
+            if (user.role === "admin") {
+                joinAdmin();
+            }
+            // EVERYONE - admins included - joins their own private room,
+            // otherwise personal notifications never arrive.
+            joinUser(userId);
+        };
+
+        // Join now AND on every future reconnect (rooms are per-connection
+        // on the server - without this, a dropped socket rejoins nothing).
+        joinRooms();
+        socket.on("connect", joinRooms);
+
+        return () => {
+            socket.off("connect", joinRooms);
+            if (socket.connected) {
+                if (user.role === "admin") leaveAdmin();
+                leaveUser(userId);
+            }
+        };
     }, [isConnected, user]);
 
     return { socket, isConnected };
@@ -67,12 +83,20 @@ export const useQueueSocket = (userId?: string) => {
             dispatch({ type: "queue/applyQueueUpdate", payload: data });
         };
 
+        // Live "you are #N in line" while waiting - server pushes this
+        // whenever someone ahead is called, served, completed or cancelled.
+        const handleQueuePosition = (data: { queueId: string; position: number }) => {
+            dispatch({ type: "queue/applyQueuePosition", payload: data });
+        };
+
         socket.on("queue:updated", handleQueueUpdate);
         socket.on("queue:called", handleQueueUpdate);
+        socket.on("queue:position", handleQueuePosition);
 
         return () => {
             socket.off("queue:updated", handleQueueUpdate);
             socket.off("queue:called", handleQueueUpdate);
+            socket.off("queue:position", handleQueuePosition);
         };
     }, [userId, isConnected, dispatch]);
 };

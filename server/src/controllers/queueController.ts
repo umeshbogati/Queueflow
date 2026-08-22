@@ -9,6 +9,8 @@ import {
     callNextQueue,
     getQueueStats,
     deleteQueue,
+    cancelMyQueue,
+    getQueuePosition,
 } from "../services/queueService.js";
 import {
     createQueueSchema,
@@ -132,6 +134,41 @@ export const getQueueByIdController = async (
     }
 };
 
+// GET QUEUE POSITION (owner or admin)
+export const getQueuePositionController = async (
+    req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    try {
+        if (!req.user?.id) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
+
+        const id = (req.params.id as string).trim();
+        const result = await getQueuePosition(id, req.user.id, req.user.role);
+
+        res.status(200).json({
+            success: true,
+            data: result,
+        });
+    } catch (error: any) {
+        const status =
+            error.message === "Queue not found"
+                ? 404
+                : error.message === "You can only view your own ticket position"
+                ? 403
+                : 400;
+        res.status(status).json({
+            success: false,
+            message: error.message || "Failed to fetch queue position",
+        });
+    }
+};
+
 // CALL NEXT QUEUE
 export const callNextController = async (
     req: AuthenticatedRequest,
@@ -222,6 +259,42 @@ export const updateQueueStatusController = async (
         res.status(status).json({
             success: false,
             message: error.message || "Failed to update queue status",
+        });
+    }
+};
+
+// CANCEL MY QUEUE (owner only)
+export const cancelMyQueueController = async (
+    req: AuthenticatedRequest,
+    res: Response
+): Promise<void> => {
+    try {
+        if (!req.user?.id) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
+
+        const id = (req.params.id as string).trim();
+        const queue = await cancelMyQueue(id, req.user.id);
+
+        res.status(200).json({
+            success: true,
+            message: "Your ticket has been cancelled",
+            data: queue,
+        });
+    } catch (error: any) {
+        const status =
+            error.message === "Queue not found"
+                ? 404
+                : error.message === "You can only cancel your own tickets"
+                ? 403
+                : 400;
+        res.status(status).json({
+            success: false,
+            message: error.message || "Failed to cancel ticket",
         });
     }
 };

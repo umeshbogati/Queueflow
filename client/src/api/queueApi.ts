@@ -43,6 +43,11 @@ export const getQueues = async () => {
   return response.data;
 };
 
+export const getMyQueues = async () => {
+  const response = await api.get("/queues/my");
+  return response.data;
+};
+
 export const getQueueById = async (id: string) => {
   const response = await api.get(`/queues/${id}`);
   return response.data;
@@ -68,6 +73,11 @@ export const updateQueueStatus = async (
   data: { status: QueueStatus; counterNumber?: number }
 ) => {
   const response = await api.patch(`/queues/${id}/status`, data);
+  return response.data;
+};
+
+export const cancelMyQueue = async (id: string) => {
+  const response = await api.patch(`/queues/${id}/cancel`);
   return response.data;
 };
 

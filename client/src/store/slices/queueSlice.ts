@@ -4,6 +4,8 @@ import {
   getQueueById,
   getQueueStats,
   getQueues,
+  getMyQueues,
+  cancelMyQueue,
   updateQueueStatus,
   callNextQueue,
 } from "../../api/queueApi";
@@ -112,6 +114,33 @@ export const changeQueueStatus = createAsyncThunk<
   }
 });
 
+export const fetchMyQueues = createAsyncThunk<
+  Queue[],
+  void,
+  { rejectValue: string }
+>("queue/fetchMyQueues", async (_, { rejectWithValue }) => {
+  try {
+    const response = await getMyQueues();
+    const data = unwrap<Queue[] | undefined>(response);
+    return Array.isArray(data) ? data : [];
+  } catch (error: unknown) {
+    return rejectWithValue(getMessage(error, "Failed to load your tickets."));
+  }
+});
+
+export const cancelMyTicket = createAsyncThunk<
+  Queue,
+  string,
+  { rejectValue: string }
+>("queue/cancelMyTicket", async (id, { rejectWithValue }) => {
+  try {
+    const response = await cancelMyQueue(id);
+    return unwrap<Queue>(response);
+  } catch (error: unknown) {
+    return rejectWithValue(getMessage(error, "Failed to cancel your ticket."));
+  }
+});
+
 export const fetchQueueStatistics = createAsyncThunk<
   QueueStats,
   void,
@@ -147,6 +176,25 @@ const queueSlice = createSlice({
       }
       if (state.currentQueue?._id === updatedQueue._id) {
         state.currentQueue = updatedQueue;
+      }
+    },
+    // Live position push for my waiting ticket ("you are #N in line")
+    applyQueuePosition: (
+      state,
+      action: { payload: { queueId: string; position: number } }
+    ) => {
+      const { queueId, position } = action.payload;
+      const patch = (q: Queue) => {
+        q.position = position;
+      };
+
+      const index = state.queues.findIndex((q) => q._id === queueId);
+      if (index !== -1) patch(state.queues[index]);
+      if (state.selectedQueue?._id === queueId) {
+        state.selectedQueue = { ...state.selectedQueue, position };
+      }
+      if (state.currentQueue?._id === queueId) {
+        state.currentQueue = { ...state.currentQueue, position };
       }
     },
     applyStatsUpdate: (state, action) => {
@@ -228,6 +276,44 @@ const queueSlice = createSlice({
         state.saving = false;
         state.error = action.payload ?? "Failed to update queue status.";
       })
+      .addCase(fetchMyQueues.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.selectedQueue = null;
+      })
+      .addCase(fetchMyQueues.fulfilled, (state, action) => {
+        state.loading = false;
+        // Auto-select the newest active ticket (list is sorted newest first)
+        const active = action.payload.find(
+          (queue) => queue.status === "waiting" || queue.status === "called"
+        );
+        if (active) {
+          state.selectedQueue = active;
+          const index = state.queues.findIndex((q) => q._id === active._id);
+          if (index !== -1) state.queues[index] = active;
+        }
+      })
+      .addCase(fetchMyQueues.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload ?? "Failed to load your tickets.";
+      })
+      .addCase(cancelMyTicket.pending, (state) => {
+        state.saving = true;
+        state.error = null;
+      })
+      .addCase(cancelMyTicket.fulfilled, (state, action) => {
+        state.saving = false;
+        state.selectedQueue = action.payload;
+
+        const index = state.queues.findIndex(
+          (queue) => queue._id === action.payload._id
+        );
+        if (index !== -1) state.queues[index] = action.payload;
+      })
+      .addCase(cancelMyTicket.rejected, (state, action) => {
+        state.saving = false;
+        state.error = action.payload ?? "Failed to cancel your ticket.";
+      })
       .addCase(fetchQueueStatistics.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Failed to load queue statistics.";
@@ -238,6 +324,7 @@ const queueSlice = createSlice({
 export const {
   clearQueueError,
   applyQueueUpdate,
+  applyQueuePosition,
   applyStatsUpdate,
 } = queueSlice.actions;
 

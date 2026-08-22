@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { fetchQueueById, changeQueueStatus } from "../../store/slices/queueSlice";
+import {
+  fetchMyQueues,
+  cancelMyTicket,
+  clearQueueError,
+} from "../../store/slices/queueSlice";
 import { useQueueSocket } from "../../socket/useSocket";
 
 const QueuePositionPage = () => {
@@ -12,20 +17,20 @@ const QueuePositionPage = () => {
   const userId = user?._id ?? user?.id;
   useQueueSocket(userId);
 
-  const [queueId, setQueueId] = useState("");
+  // Auto-load the user's tickets and pick the newest waiting/called one
+  useEffect(() => {
+    dispatch(fetchMyQueues());
+  }, [dispatch]);
 
-  const checkPosition = async () => {
-    if (!queueId.trim()) {
-      return;
-    }
-    dispatch(fetchQueueById(queueId.trim()));
-  };
+  useEffect(() => {
+    return () => {
+      dispatch(clearQueueError());
+    };
+  }, [dispatch]);
 
   const cancelQueue = async () => {
     if (!selectedQueue) return;
-    dispatch(
-      changeQueueStatus({ id: selectedQueue._id, status: "cancelled" })
-    );
+    dispatch(cancelMyTicket(selectedQueue._id));
   };
 
   const canCancel =
@@ -41,39 +46,17 @@ const QueuePositionPage = () => {
           Queue Position
         </h1>
 
-        <div className="mt-8 rounded-xl bg-white p-6 shadow">
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+            {error}
+          </div>
+        )}
 
-          <label className="text-sm font-medium">
-            Queue ID
-          </label>
-
-          <input
-            value={queueId}
-            onChange={(e) =>
-              setQueueId(e.target.value)
-            }
-            placeholder="Enter queue ID"
-            className="mt-2 w-full rounded-lg border px-4 py-3"
-          />
-
-          {error && (
-            <p className="mt-3 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
-          <button
-            onClick={checkPosition}
-            disabled={loading}
-            className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading
-              ? "Checking..."
-              : "Check Position"}
-          </button>
-
-          {selectedQueue && (
-            <div className="mt-8 rounded-xl border p-6 text-center">
+        {loading && !selectedQueue ? (
+          <p className="mt-8 text-center text-gray-500">Loading your ticket...</p>
+        ) : selectedQueue ? (
+          <div className="mt-8 rounded-xl bg-white p-6 shadow">
+            <div className="rounded-xl border p-6 text-center">
 
               <p className="text-sm text-gray-500">
                 Your Queue Number
@@ -82,6 +65,24 @@ const QueuePositionPage = () => {
               <h2 className="mt-2 text-5xl font-bold text-blue-600">
                 {selectedQueue.displayNumber}
               </h2>
+
+              {/* Live spot in line - server pushes updates via socket,
+                  so this changes on its own while you wait */}
+              {selectedQueue.status === "waiting" && selectedQueue.position != null && (
+                <div className="mt-4 rounded-lg bg-blue-50 px-4 py-3">
+                  <p className="text-sm text-gray-500">Your position</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    #{selectedQueue.position}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {selectedQueue.position === 1
+                      ? "You are next!"
+                      : `${selectedQueue.position - 1} ${
+                          selectedQueue.position - 1 === 1 ? "person" : "people"
+                        } ahead of you`}
+                  </p>
+                </div>
+              )}
 
               <p className="mt-4">
                 Status:{" "}
@@ -108,13 +109,6 @@ const QueuePositionPage = () => {
                 </p>
               )}
 
-              {selectedQueue.position !== undefined && (
-                <p className="mt-2">
-                  Position:{" "}
-                  <strong>{selectedQueue.position}</strong>
-                </p>
-              )}
-
               {selectedQueue.counterNumber && (
                 <p className="mt-2">
                   Counter:{" "}
@@ -133,15 +127,52 @@ const QueuePositionPage = () => {
               )}
 
               {selectedQueue.status === "cancelled" && (
-                <p className="mt-4 text-sm text-red-500">
-                  This queue has been cancelled.
-                </p>
+                <div>
+                  <p className="mt-4 text-sm text-red-500">
+                    This queue has been cancelled.
+                  </p>
+                  <Link
+                    to="/queue"
+                    className="mt-4 inline-block w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+                  >
+                    Take a New Ticket
+                  </Link>
+                </div>
+              )}
+
+              {(selectedQueue.status === "completed") && (
+                <div>
+                  <p className="mt-4 text-sm text-green-600">
+                    This visit is completed. Thank you!
+                  </p>
+                  <Link
+                    to="/queue"
+                    className="mt-4 inline-block w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+                  >
+                    Take a New Ticket
+                  </Link>
+                </div>
               )}
 
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="mt-8 rounded-xl bg-white p-8 text-center shadow">
+            <h2 className="text-lg font-semibold text-gray-800">
+              No active ticket
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              You don't have a waiting or called ticket right now.
+            </p>
+            <Link
+              to="/queue"
+              className="mt-6 inline-block rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
+            >
+              Take a Ticket
+            </Link>
+          </div>
+        )}
 
-        </div>
       </div>
     </div>
   );

@@ -4,9 +4,10 @@ const { Schema } = mongoose;
 
 // Notification model for storing user notifications (e.g. "It's your turn!", "Your ticket is being served", etc.)
 export type NotificationType =
-    | "queue_called"     // staff called the customer's ticket -> "It's your turn!"
-    | "queue_serving"    // customer is now being served
-    | "queue_completed"  // service finished
+    | "queue_created"   // customer took a ticket -> confirmation
+    | "queue_called"    // staff called the customer's ticket -> "It's your turn!"
+    | "queue_serving"   // customer is now being served
+    | "queue_completed" // service finished
     | "queue_cancelled"; // ticket was cancelled
 
 export interface INotification extends Document {
@@ -32,6 +33,7 @@ const notificationSchema = new Schema<INotification>(
         type: {
             type: String,
             enum: [
+                "queue_created",
                 "queue_called",
                 "queue_serving",
                 "queue_completed",

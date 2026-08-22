@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellRing, CheckCheck, X } from "lucide-react";
+import { Bell, BellRing, CheckCheck, Ticket, X } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import {
   fetchNotifications,
@@ -25,6 +25,8 @@ const timeAgo = (isoDate: string): string => {
 // Icon + color per notification type
 const typeStyle = (type: Notification["type"]) => {
   switch (type) {
+    case "queue_created":
+      return { Icon: Ticket, classes: "bg-emerald-100 text-emerald-600" };
     case "queue_called":
       return { Icon: BellRing, classes: "bg-blue-100 text-blue-600" };
     case "queue_serving":

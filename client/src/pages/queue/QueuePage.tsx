@@ -43,7 +43,7 @@ const QueuePage = () => {
   };
 
   const filteredDepartments = departments.filter((dept) => {
-    if (!branchId) return false;
+    if (!branchId || dept.isActive === false) return false;
     return getDepartmentBranchId(dept) === branchId;
   });
 
@@ -87,7 +87,7 @@ const QueuePage = () => {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
                   <option value="">Select branch</option>
-                  {branches.map((b) => (
+                  {branches.filter((b) => b.isActive !== false).map((b) => (
                     <option key={b._id} value={b._id}>{b.name}</option>
                   ))}
                 </select>

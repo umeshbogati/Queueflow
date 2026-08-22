@@ -4,7 +4,12 @@ import api from "./axios";
 export interface Notification {
   _id: string;
   user: string;
-  type: "queue_called" | "queue_serving" | "queue_completed" | "queue_cancelled";
+  type:
+    | "queue_created"
+    | "queue_called"
+    | "queue_serving"
+    | "queue_completed"
+    | "queue_cancelled";
   title: string;
   message: string;
   queue?: string;

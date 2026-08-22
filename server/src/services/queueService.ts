@@ -3,7 +3,7 @@ import Queue, { type QueueStatus } from "../models/Queue.js";
 import Branch from "../models/Branch.js";
 import Department from "../models/Department.js";
 import { User } from "../models/User.js";
-import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated } from "../sockets/emitter.js";
+import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated, emitQueuePosition } from "../sockets/emitter.js";
 import type { QueueData } from "../sockets/socketTypes.js";
 import { createAndEmitNotification } from "./notificationService.js";
 
@@ -12,6 +12,47 @@ const today = (): string => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
+
+// Push the live spot of EVERY waiting ticket in a department to its owner's
+// private room. Called whenever the line changes (call next, complete,
+// cancel, delete) so waiting customers see their number move without
+// refreshing. Position 1 = "you are next".
+const emitDepartmentPositions = async (
+    departmentId: string | mongoose.Types.ObjectId,
+    date: string
+): Promise<void> => {
+    const waiting = await Queue.find({
+        department: departmentId,
+        date,
+        status: "waiting",
+    })
+        .sort({ ticketNumber: 1 })
+        .select("customer");
+
+    waiting.forEach((q, index) => {
+        emitQueuePosition(
+            {
+                queueId: q._id.toString(),
+                department: departmentId.toString(),
+                position: index + 1,
+            },
+            q.customer.toString()
+        );
+    });
+};
+
+// How many WAITING tickets of the same department/day are ahead of this one.
+const countTicketsAhead = async (
+    departmentId: string | mongoose.Types.ObjectId,
+    date: string,
+    ticketNumber: number
+): Promise<number> =>
+    Queue.countDocuments({
+        department: departmentId,
+        date,
+        status: "waiting",
+        ticketNumber: { $lt: ticketNumber },
+    });
 
 const toQueueData = (q: InstanceType<typeof Queue>): QueueData => {    const branchRaw = q.branch as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; location?: string };
     const departmentRaw = q.department as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; prefix?: string };
@@ -144,6 +185,27 @@ export const createQueue = async ({
     const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
     emitQueueCreated(toQueueData(populated!), branchId, deptId);
 
+    // Confirm the booking to the customer right away - without this, a user
+    // never hears anything from the moment they take a ticket until staff
+    // calls them, which made the bell feel broken for non-admins.
+    await createAndEmitNotification({
+        userId: customer,
+        type: "queue_created",
+        title: "Ticket booked",
+        message: `Ticket ${queue.displayNumber} booked at ${departmentData.name}. We'll notify you when it's your turn.`,
+        queueId: queue._id.toString(),
+    });
+
+    // Tell the customer where they stand in the line as soon as they join.
+    emitQueuePosition(
+        {
+            queueId: queue._id.toString(),
+            department: deptId,
+            position: (await countTicketsAhead(deptId, date, queue.ticketNumber)) + 1,
+        },
+        customer
+    );
+
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
 
@@ -162,12 +224,37 @@ export const getMyQueues = async (customerId: string) => {
         throw new Error("Invalid customer ID");
     }
 
-    return await Queue.find({
+    const queues = await Queue.find({
         customer: customerId,
     })
         .populate("branch", "name location")
         .populate("department", "name prefix")
         .sort({ createdAt: -1 });
+
+    // Attach the live position (rank among today's waiting tickets of the
+    // same department) so the client can render it immediately on load -
+    // socket pushes keep it fresh after that.
+    return await Promise.all(
+        queues.map(async (q) => {
+            if (q.status !== "waiting") return q.toObject();
+
+            const departmentRaw = q.department as unknown as
+                | mongoose.Types.ObjectId
+                | { _id: mongoose.Types.ObjectId };
+            const departmentId =
+                typeof departmentRaw === "string"
+                    ? departmentRaw
+                    : departmentRaw._id.toString();
+
+            const ahead = await countTicketsAhead(
+                departmentId,
+                q.date,
+                q.ticketNumber
+            );
+
+            return { ...q.toObject(), position: ahead + 1 };
+        })
+    );
 };
 
 export const getQueueById = async (queueId: string) => {
@@ -247,6 +334,9 @@ export const callNextQueue = async ({
             : `Ticket ${queue.displayNumber} - please proceed to the counter`,
         queueId: queue._id.toString(),
     });
+
+    // Everyone behind just moved one spot up - push their new positions.
+    await emitDepartmentPositions(queue.department, queue.date);
 
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
@@ -365,6 +455,55 @@ export const updateQueueStatus = async (
         queueId: queue._id.toString(),
     });
 
+    // serving/completed/cancelled remove someone from the waiting line,
+    // so everyone behind moves up - push their new positions.
+    if (status !== "called") {
+        await emitDepartmentPositions(queue.department, queue.date);
+    }
+
+    const stats = await getQueueStats();
+    emitStatsUpdated(stats);
+
+    return queue;
+};
+
+// Cancel my own ticket - only the owner can do this,
+// and only while still waiting or called.
+export const cancelMyQueue = async (queueId: string, customerId: string) => {
+    if (!mongoose.Types.ObjectId.isValid(queueId)) {
+        throw new Error("Invalid queue ID");
+    }
+
+    const queue = await Queue.findById(queueId);
+
+    if (!queue) {
+        throw new Error("Queue not found");
+    }
+
+    if (queue.customer.toString() !== customerId) {
+        throw new Error("You can only cancel your own tickets");
+    }
+
+    if (queue.status !== "waiting" && queue.status !== "called") {
+        throw new Error("Only waiting or called tickets can be cancelled");
+    }
+
+    queue.status = "cancelled";
+    queue.cancelledAt = new Date();
+    await queue.save();
+
+    const populated = await Queue.findById(queue._id)
+        .populate("branch", "name location")
+        .populate("department", "name prefix")
+        .populate("customer", "name");
+
+    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
+    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
+    emitQueueUpdated(toQueueData(populated!), branchId, deptId);
+
+    // The cancelled spot frees up - everyone behind moves up.
+    await emitDepartmentPositions(queue.department, queue.date);
+
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
 
@@ -382,8 +521,47 @@ export const deleteQueue = async (queueId: string) => {
         throw new Error("Queue not found");
     }
 
+    // If a waiting ticket was deleted, the line shifts - push new positions.
+    if (queue.status === "waiting") {
+        await emitDepartmentPositions(queue.department, queue.date);
+    }
+
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
 
     return { message: "Queue deleted successfully" };
+};
+
+// Current spot of one ticket - position 1 means "you are next".
+// Owner or admin only; returns null while the ticket isn't waiting.
+export const getQueuePosition = async (
+    queueId: string,
+    requesterId: string,
+    requesterRole: string
+): Promise<{ queueId: string; status: string; position: number | null }> => {
+    if (!mongoose.Types.ObjectId.isValid(queueId)) {
+        throw new Error("Invalid queue ID");
+    }
+
+    const queue = await Queue.findById(queueId);
+
+    if (!queue) {
+        throw new Error("Queue not found");
+    }
+
+    if (requesterRole !== "admin" && queue.customer.toString() !== requesterId) {
+        throw new Error("You can only view your own ticket position");
+    }
+
+    if (queue.status !== "waiting") {
+        return { queueId, status: queue.status, position: null };
+    }
+
+    const ahead = await countTicketsAhead(
+        queue.department,
+        queue.date,
+        queue.ticketNumber
+    );
+
+    return { queueId, status: queue.status, position: ahead + 1 };
 };

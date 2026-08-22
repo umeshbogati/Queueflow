@@ -48,6 +48,12 @@ export const setupSocketHandlers = (io: Server) => {
         const userId = socket.data.userId as string;
         const role = socket.data.role as string;
 
+        // Join the caller's private room immediately using the AUTHENTICATED id.
+        // Personal notifications (notification:new, queue:position) are emitted
+        // to this room, so delivery must not depend on the client remembering
+        // to emit "join:user" with the right id.
+        socket.join(`user:${userId}`);
+
         socket.on("join:branch", (branchId: string) => {
             if (typeof branchId === "string" && branchId.length <= 64) {
                 socket.join(`branch:${branchId}`);

@@ -1,37 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { useAppSelector } from "../../store/hooks";
-import type { Notification } from "../../api/notificationApi";
 
-// Toast for the newest notification, which appears in the bottom-right corner
+// Toast for notifications that arrive LIVE via socket.
+// The slice stores each socket arrival in `lastLive`; REST history loads
+// never touch it - so freshly loaded history can never swallow a toast
+// (the old bug: first live notification was mistaken for history).
+//
+// The visible toast is DERIVED from `lastLive` instead of copied into
+// another state inside an effect (avoids cascading renders): it shows
+// the newest live notification until the user dismisses it or 5s pass.
 const NotificationToast = () => {
-  const newest = useAppSelector((state) => state.notification.items[0]);
+  const live = useAppSelector((state) => state.notification.lastLive);
 
-  const [toast, setToast] = useState<Notification | null>(null);
-  // Tracks which notification we last saw so we only toast genuinely NEW ones
-  const lastSeenId = useRef<string | null>(null);
-  const isFirstRender = useRef(true);
+  // id of the notification the user closed / that auto-dismissed
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!newest) return;
+  const toast = live && dismissedId !== live._id ? live : null;
 
-    if (isFirstRender.current) {
-      // On mount just remember the current newest - don't toast old history
-      isFirstRender.current = false;
-      lastSeenId.current = newest._id;
-      return;
-    }
-
-    if (newest._id !== lastSeenId.current) {
-      lastSeenId.current = newest._id;
-      setToast(newest);
-    }
-  }, [newest]);
-
-  // Auto-dismiss after 5 seconds
+  // Auto-dismiss after 5 seconds (setState inside a timer callback,
+  // not synchronously in the effect body)
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 5000);
+    const timer = setTimeout(
+      () => setDismissedId(toast._id),
+      5000
+    );
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -47,7 +41,7 @@ const NotificationToast = () => {
         </div>
         <button
           type="button"
-          onClick={() => setToast(null)}
+          onClick={() => setDismissedId(toast._id)}
           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           aria-label="Dismiss"
         >

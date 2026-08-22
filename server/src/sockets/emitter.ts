@@ -1,6 +1,6 @@
 import { io } from "../server.js";
 import { SOCKET_EVENTS, SOCKET_ROOMS } from "./socketEvents.js";
-import type { QueueData, BranchData, DepartmentData, QueueStatsData, NotificationData } from "./socketTypes.js";
+import type { QueueData, BranchData, DepartmentData, QueueStatsData, QueuePositionData, NotificationData } from "./socketTypes.js";
 
 export const emitQueueCreated = (data: QueueData, branchId: string, departmentId: string) => {
     io.to(SOCKET_ROOMS.branch(branchId)).to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.QUEUE_CREATED, data);
@@ -61,8 +61,13 @@ export const emitStatsUpdated = (data: QueueStatsData) => {
 };
 
 // Push a freshly created notification to the recipient's private room.
-// The client is already joined to `user:{id}` via useSocketConnection(),
-// so no extra join logic is needed.
+// The socket is joined to `user:{id}` automatically on connect (socket.ts),
+// so no client-side join is needed for personal delivery.
 export const emitNotificationCreated = (data: NotificationData, userId: string) => {
     io.to(SOCKET_ROOMS.user(userId)).emit(SOCKET_EVENTS.NOTIFICATION_NEW, data);
+};
+
+// Push one waiting customer's live spot in the line to their private room.
+export const emitQueuePosition = (data: QueuePositionData, userId: string) => {
+    io.to(SOCKET_ROOMS.user(userId)).emit(SOCKET_EVENTS.QUEUE_POSITION, data);
 };
