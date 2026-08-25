@@ -65,6 +65,21 @@ const AdminDashboardPage = () => {
             </p>
           </Link>
 
+          <Link
+            to="/agents"
+            className="rounded-xl bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-lg"
+          >
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+              A
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">
+              Agents
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Manage service agents, office hours, and token limits.
+            </p>
+          </Link>
+
         </div>
 
         <h3 className="mb-4 mt-10 text-sm font-semibold uppercase tracking-wider text-gray-400">
@@ -82,6 +97,18 @@ const AdminDashboardPage = () => {
             </h3>
             <p className="mt-2 text-sm text-blue-100">
               Advance the queue to the next waiting customer.
+            </p>
+          </Link>
+
+          <Link
+            to="/agent-dashboard"
+            className="rounded-xl bg-indigo-600 p-6 text-white shadow transition hover:-translate-y-1 hover:bg-indigo-700"
+          >
+            <h3 className="text-lg font-bold">
+              Agent Dashboard
+            </h3>
+            <p className="mt-2 text-sm text-indigo-100">
+              View agent performance, token usage, and office status.
             </p>
           </Link>
 
