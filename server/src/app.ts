@@ -8,6 +8,7 @@ import branchRoutes from "./routes/branchRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import queueRoutes from "./routes/queueRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import agentRoutes from "./routes/agentRoutes.js";
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/branches", branchRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/queues", queueRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/agents", agentRoutes);
 
 // JSON 404 for unknown API routes
 app.use((_req, res) => {

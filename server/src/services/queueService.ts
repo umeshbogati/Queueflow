@@ -3,9 +3,12 @@ import Queue, { type QueueStatus } from "../models/Queue.js";
 import Branch from "../models/Branch.js";
 import Department from "../models/Department.js";
 import { User } from "../models/User.js";
+import Agent from "../models/Agent.js";
 import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated, emitQueuePosition } from "../sockets/emitter.js";
 import type { QueueData } from "../sockets/socketTypes.js";
 import { createAndEmitNotification } from "./notificationService.js";
+import { isWithinOfficeHours, startNoShowTimer } from "./agentService.js";
+import { cancelNoShowTimer } from "./agentService.js";
 
 // Local date as YYYY-MM-DD - matches Queue.date storage format
 const today = (): string => {
@@ -57,6 +60,7 @@ const countTicketsAhead = async (
 const toQueueData = (q: InstanceType<typeof Queue>): QueueData => {    const branchRaw = q.branch as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; location?: string };
     const departmentRaw = q.department as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; prefix?: string };
     const customerRaw = q.customer as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name?: string };
+    const agentRaw = (q as any).agent as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name?: string; counterNumber?: number } | undefined;
 
     const branchData: QueueData["branch"] = branchRaw && typeof branchRaw === "object" && "name" in branchRaw
         ? { _id: (branchRaw._id as mongoose.Types.ObjectId).toString(), name: branchRaw.name, ...(branchRaw.location !== undefined ? { location: branchRaw.location } : {}) }
@@ -79,6 +83,16 @@ const toQueueData = (q: InstanceType<typeof Queue>): QueueData => {    const bra
         date: q.date,
     };
     if (q.counterNumber !== undefined) data.counterNumber = q.counterNumber;
+
+    // Include agent if populated
+    if (agentRaw) {
+        if (typeof agentRaw === "object" && "name" in agentRaw) {
+            data.agent = { _id: (agentRaw._id as mongoose.Types.ObjectId).toString(), name: agentRaw.name, ...(agentRaw.counterNumber !== undefined ? { counterNumber: agentRaw.counterNumber } : {}) };
+        } else {
+            data.agent = agentRaw.toString();
+        }
+    }
+
     if (q.calledAt !== undefined) data.calledAt = q.calledAt;
     if (q.servingAt !== undefined) data.servingAt = q.servingAt;
     if (q.completedAt !== undefined) data.completedAt = q.completedAt;
@@ -132,6 +146,12 @@ export const createQueue = async ({
         throw new Error("Department does not belong to this branch");
     }
 
+    // Check office hours: find an active agent for this department to check hours
+    const activeAgent = await Agent.findOne({ department, isActive: true });
+    if (activeAgent && !isWithinOfficeHours(activeAgent.officeStart, activeAgent.officeEnd)) {
+        throw new Error(`Office hours are ${activeAgent.officeStart}:00 - ${activeAgent.officeEnd}:00. Currently outside office hours.`);
+    }
+
     const date = today();
     const prefix = departmentData.prefix || "Q";
 
@@ -179,7 +199,8 @@ export const createQueue = async ({
     const populated = await Queue.findById(queue._id)
         .populate("branch", "name location")
         .populate("department", "name prefix")
-        .populate("customer", "name");
+        .populate("customer", "name")
+        .populate("agent");
 
     const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
     const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
@@ -317,7 +338,8 @@ export const callNextQueue = async ({
     const populated = await Queue.findById(queue._id)
         .populate("branch", "name location")
         .populate("department", "name prefix")
-        .populate("customer", "name");
+        .populate("customer", "name")
+        .populate("agent");
 
     const queueBranchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
     const queueDeptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
@@ -337,6 +359,9 @@ export const callNextQueue = async ({
 
     // Everyone behind just moved one spot up - push their new positions.
     await emitDepartmentPositions(queue.department, queue.date);
+
+    // Start no-show timer: if customer doesn't show up in 2 minutes, skip them
+    startNoShowTimer(queue._id.toString(), null);
 
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
@@ -393,6 +418,11 @@ export const updateQueueStatus = async (
         return queue;
     }
 
+    // Customer showed up or ticket resolved - cancel no-show timer
+    if (status === "serving" || status === "completed" || status === "cancelled") {
+        cancelNoShowTimer(queueId);
+    }
+
     queue.status = status;
 
     if (status === "serving" && counterNumber) {
@@ -415,7 +445,8 @@ export const updateQueueStatus = async (
     const populated = await Queue.findById(queue._id)
         .populate("branch", "name location")
         .populate("department", "name prefix")
-        .populate("customer", "name");
+        .populate("customer", "name")
+        .populate("agent");
 
     const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
     const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
@@ -488,6 +519,9 @@ export const cancelMyQueue = async (queueId: string, customerId: string) => {
         throw new Error("Only waiting or called tickets can be cancelled");
     }
 
+    // Cancel no-show timer if ticket was called
+    cancelNoShowTimer(queueId);
+
     queue.status = "cancelled";
     queue.cancelledAt = new Date();
     await queue.save();
@@ -495,7 +529,8 @@ export const cancelMyQueue = async (queueId: string, customerId: string) => {
     const populated = await Queue.findById(queue._id)
         .populate("branch", "name location")
         .populate("department", "name prefix")
-        .populate("customer", "name");
+        .populate("customer", "name")
+        .populate("agent");
 
     const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
     const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();

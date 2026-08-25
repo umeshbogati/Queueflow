@@ -7,10 +7,6 @@ import {
     updateBranch,
     deleteBranch,
 } from "../services/branchService.js";
-import {
-    createBranchSchema,
-    updateBranchSchema,
-} from "../validators/branchValidator.js";
 
 // CREATE BRANCH
 export const createBranchController = async (
@@ -18,17 +14,7 @@ export const createBranchController = async (
     res: Response
 ): Promise<void> => {
     try {
-        const validation = createBranchSchema.safeParse(req.body);
-        if (!validation.success) {
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                 errors: validation.error.format(),
-            });
-            return;
-        }
-
-        const { name, location } = validation.data;
+        const { name, location } = req.body;
 
         const branch = await createBranch(name, location);
 
@@ -112,17 +98,7 @@ export const updateBranchController = async (
             return;
         }
 
-        const validation = updateBranchSchema.safeParse(req.body);
-        if (!validation.success) {
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                 errors: validation.error.format(),
-            });
-            return;
-        }
-
-        const { name, location, isActive } = validation.data;
+        const { name, location, isActive } = req.body;
 
         const branch = await updateBranch(id, name, location, isActive);
 

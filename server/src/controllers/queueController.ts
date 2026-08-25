@@ -13,9 +13,7 @@ import {
     getQueuePosition,
 } from "../services/queueService.js";
 import {
-    createQueueSchema,
     callNextSchema,
-    updateQueueStatusSchema,
 } from "../validators/queueValidator.js";
 
 // CREATE QUEUE
@@ -32,17 +30,7 @@ export const createQueueController = async (
             return;
         }
 
-        const validation = createQueueSchema.safeParse(req.body);
-        if (!validation.success) {
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                 errors: validation.error.format(),
-            });
-            return;
-        }
-
-        const { branch, department } = validation.data;
+        const { branch, department } = req.body;
 
         const queue = await createQueue({
             branch,
@@ -236,17 +224,7 @@ export const updateQueueStatusController = async (
     try {
         const id = (req.params.id as string).trim();
 
-        const validation = updateQueueStatusSchema.safeParse(req.body);
-        if (!validation.success) {
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                 errors: validation.error.format(),
-            });
-            return;
-        }
-
-        const { status, counterNumber } = validation.data;
+        const { status, counterNumber } = req.body;
         const queue = await updateQueueStatus(id, status, counterNumber);
 
         res.status(200).json({

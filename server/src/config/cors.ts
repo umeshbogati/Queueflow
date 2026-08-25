@@ -1,8 +1,15 @@
 // Shared CORS whitelist for both Express and Socket.IO.
-// Covers the Vite dev server opened via localhost OR 127.0.0.1.
+// Set CLIENT_URL in production (comma-separated list allowed),
+// e.g. CLIENT_URL=https://queueflow.bogatiu17.workers.dev
+const envOrigins = (process.env.CLIENT_URL ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
 const allowedOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    ...envOrigins,
 ];
 
 interface CorsOriginCallback {

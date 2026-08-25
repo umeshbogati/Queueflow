@@ -20,6 +20,7 @@ export interface IQueue extends Document {
     status: QueueStatus;
     date: string;
     counterNumber?: number;
+    agent?: Types.ObjectId;
 
     calledAt?: Date;
     servingAt?: Date;
@@ -85,6 +86,11 @@ const queueSchema = new Schema<IQueue>(
 
         counterNumber: {
             type: Number,
+        },
+
+        agent: {
+            type: Schema.Types.ObjectId,
+            ref: "Agent",
         },
 
         calledAt: {
