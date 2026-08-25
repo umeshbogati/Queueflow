@@ -25,11 +25,6 @@ export const getBranches = async () => {
     return response.data;
 };
 
-export const getBranchById = async (id: string) => {
-    const response = await api.get(`/branches/${id}`);
-    return response.data;
-};
-
 export const createBranch = async (data: CreateBranchData) => {
     const response = await api.post("/branches", data);
     return response.data;

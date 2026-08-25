@@ -6,6 +6,7 @@ import departmentReducer from "./slices/departmentSlice";
 import queueReducer from "./slices/queueSlice";
 import counterReducer from "./slices/counterSlice";
 import notificationReducer from "./slices/notificationSlice";
+import agentReducer from "./slices/agentSlice";
 
 export const store = configureStore({
   reducer: {
@@ -15,6 +16,7 @@ export const store = configureStore({
     queue: queueReducer,
     counter: counterReducer,
     notification: notificationReducer,
+    agent: agentReducer,
   },
 });
 

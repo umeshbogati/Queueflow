@@ -2,7 +2,6 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
   createDepartment,
   deleteDepartment,
-  getDepartmentById,
   getDepartments,
   updateDepartment,
 } from "../../api/departmentApi";
@@ -16,7 +15,6 @@ import { unwrap, getMessage } from "../utils";
 
 interface DepartmentState {
   departments: Department[];
-  selectedDepartment: Department | null;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -24,7 +22,6 @@ interface DepartmentState {
 
 const initialState: DepartmentState = {
   departments: [],
-  selectedDepartment: null,
   loading: false,
   saving: false,
   error: null,
@@ -41,19 +38,6 @@ export const fetchDepartments = createAsyncThunk<
     return Array.isArray(data) ? data : [];
   } catch (error: unknown) {
     return rejectWithValue(getMessage(error, "Failed to load departments."));
-  }
-});
-
-export const fetchDepartmentById = createAsyncThunk<
-  Department,
-  string,
-  { rejectValue: string }
->("department/fetchDepartmentById", async (id, { rejectWithValue }) => {
-  try {
-    const response = await getDepartmentById(id);
-    return unwrap<Department>(response);
-  } catch (error: unknown) {
-    return rejectWithValue(getMessage(error, "Failed to load department."));
   }
 });
 
@@ -106,9 +90,6 @@ const departmentSlice = createSlice({
   name: "department",
   initialState,
   reducers: {
-    clearSelectedDepartment: (state) => {
-      state.selectedDepartment = null;
-    },
     clearDepartmentError: (state) => {
       state.error = null;
     },
@@ -125,16 +106,10 @@ const departmentSlice = createSlice({
       if (index !== -1) {
         state.departments[index] = dept;
       }
-      if (state.selectedDepartment?._id === dept._id) {
-        state.selectedDepartment = dept;
-      }
     },
     applyDepartmentDeleted: (state, action) => {
       const id = action.payload as string;
       state.departments = state.departments.filter((d) => d._id !== id);
-      if (state.selectedDepartment?._id === id) {
-        state.selectedDepartment = null;
-      }
     },
   },
   extraReducers: (builder) => {
@@ -150,18 +125,6 @@ const departmentSlice = createSlice({
       .addCase(fetchDepartments.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Failed to load departments.";
-      })
-      .addCase(fetchDepartmentById.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchDepartmentById.fulfilled, (state, action) => {
-        state.loading = false;
-        state.selectedDepartment = action.payload;
-      })
-      .addCase(fetchDepartmentById.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload ?? "Failed to load department.";
       })
       .addCase(addDepartment.pending, (state) => {
         state.saving = true;
@@ -185,9 +148,6 @@ const departmentSlice = createSlice({
           (department) => department._id === action.payload._id
         );
         if (index !== -1) state.departments[index] = action.payload;
-        if (state.selectedDepartment?._id === action.payload._id) {
-          state.selectedDepartment = action.payload;
-        }
       })
       .addCase(editDepartment.rejected, (state, action) => {
         state.saving = false;
@@ -202,9 +162,6 @@ const departmentSlice = createSlice({
         state.departments = state.departments.filter(
           (department) => department._id !== action.payload
         );
-        if (state.selectedDepartment?._id === action.payload) {
-          state.selectedDepartment = null;
-        }
       })
       .addCase(removeDepartment.rejected, (state, action) => {
         state.saving = false;
@@ -214,7 +171,6 @@ const departmentSlice = createSlice({
 });
 
 export const {
-  clearSelectedDepartment,
   clearDepartmentError,
   applyDepartmentCreated,
   applyDepartmentUpdated,

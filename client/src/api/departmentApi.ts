@@ -36,12 +36,6 @@ export const getDepartments = async () => {
   return response.data;
 };
 
-export const getDepartmentById = async (id: string) => {
-  const response = await api.get(`/departments/${id}`);
-
-  return response.data;
-};
-
 export const createDepartment = async (
   data: CreateDepartmentData
 ) => {

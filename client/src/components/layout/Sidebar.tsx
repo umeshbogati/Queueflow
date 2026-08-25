@@ -18,6 +18,8 @@ const Sidebar = () => {
     { name: "Branches", path: "/branches" },
     { name: "Departments", path: "/departments" },
     { name: "All Queues", path: "/queue" },
+    { name: "Agents", path: "/agents" },
+    { name: "Agent Dashboard", path: "/agent-dashboard" },
     { name: "Call Next", path: "/call-next" },
     { name: "Counter Staff", path: "/counter" },
     { name: "Statistics", path: "/statistics" },

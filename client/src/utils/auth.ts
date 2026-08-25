@@ -40,15 +40,6 @@ export const getUser = (): AuthUser | null => {
     return null;
   }
 };
-export const getUserRole = (): string | null => {
-  const user = getUser();
-
-  return user?.role ?? null;
-};
-
-export const isAuthenticated = (): boolean => {
-  return Boolean(getToken());
-};
 
 export const logout = (): void => {
   localStorage.removeItem(TOKEN_KEY);

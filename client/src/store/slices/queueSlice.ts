@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import {
   createQueue,
-  getQueueById,
   getQueueStats,
   getQueues,
   getMyQueues,
@@ -50,19 +49,6 @@ export const fetchQueues = createAsyncThunk<
     return Array.isArray(data) ? data : [];
   } catch (error: unknown) {
     return rejectWithValue(getMessage(error, "Failed to load queues."));
-  }
-});
-
-export const fetchQueueById = createAsyncThunk<
-  Queue,
-  string,
-  { rejectValue: string }
->("queue/fetchQueueById", async (id, { rejectWithValue }) => {
-  try {
-    const response = await getQueueById(id);
-    return unwrap<Queue>(response);
-  } catch (error: unknown) {
-    return rejectWithValue(getMessage(error, "Failed to load queue."));
   }
 });
 
@@ -214,18 +200,6 @@ const queueSlice = createSlice({
       .addCase(fetchQueues.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Failed to load queues.";
-      })
-      .addCase(fetchQueueById.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchQueueById.fulfilled, (state, action) => {
-        state.loading = false;
-        state.selectedQueue = action.payload;
-      })
-      .addCase(fetchQueueById.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload ?? "Failed to load queue.";
       })
       .addCase(addQueue.pending, (state) => {
         state.saving = true;

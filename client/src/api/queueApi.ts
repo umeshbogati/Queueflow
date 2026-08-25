@@ -48,11 +48,6 @@ export const getMyQueues = async () => {
   return response.data;
 };
 
-export const getQueueById = async (id: string) => {
-  const response = await api.get(`/queues/${id}`);
-  return response.data;
-};
-
 export const createQueue = async (data: CreateQueueData) => {
   const response = await api.post("/queues", data);
   return response.data;

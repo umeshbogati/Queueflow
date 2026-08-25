@@ -20,6 +20,10 @@ import QueuePositionPage from "../pages/queue/QueuePositionPage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import StatisticsPage from "../pages/statistics/StatisticsPage";
 
+// Agents
+import AgentsPage from "../pages/agents/AgentsPage";
+import AgentDashboardPage from "../pages/agents/AgentDashboardPage";
+
 // Counter
 import CounterStaffPage from "../pages/counter/CounterStaffPage";
 import CallNextPage from "../pages/call-next/CallNextPage";
@@ -116,6 +120,16 @@ const AppRoutes = () => {
             <Route
               path="/statistics"
               element={<StatisticsPage />}
+            />
+
+            <Route
+              path="/agents"
+              element={<AgentsPage />}
+            />
+
+            <Route
+              path="/agent-dashboard"
+              element={<AgentDashboardPage />}
             />
           </Route>
         </Route>
