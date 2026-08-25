@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { callNext, changeQueueStatus, fetchQueues, clearQueueError } from "../../store/slices/queueSlice";
+import {
+  callNext,
+  changeQueueStatus,
+  fetchQueues,
+  clearQueueError,
+} from "../../store/slices/queueSlice";
 import { fetchDepartments } from "../../store/slices/departmentSlice";
+import {
+  fetchAgents,
+  callNextByAgent,
+} from "../../store/slices/agentSlice";
 import { useAdminSocket } from "../../socket/useSocket";
+import type { Agent } from "../../api/agentApi";
 
-// CallNextPage: Admin page for calling the next customer in the queue
 const CallNextPage = () => {
   const dispatch = useAppDispatch();
   useAdminSocket();
@@ -13,15 +22,18 @@ const CallNextPage = () => {
     (state) => state.queue
   );
   const { departments } = useAppSelector((state) => state.department);
+  const { agents } = useAppSelector((state) => state.agent);
   const counterNumber = useAppSelector(
     (state) => state.counter.currentCounterNumber
   );
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
 
   useEffect(() => {
     dispatch(fetchQueues());
     dispatch(fetchDepartments());
+    dispatch(fetchAgents());
   }, [dispatch]);
 
   useEffect(() => {
@@ -30,25 +42,44 @@ const CallNextPage = () => {
     };
   }, [dispatch]);
 
-  const activeQueue = currentQueue ?? queues.find(
-    (q) => q.status === "called" || q.status === "serving"
+  const activeQueue =
+    currentQueue ??
+    queues.find((q) => q.status === "called" || q.status === "serving");
+
+  const activeDepartments = departments.filter((d) => d.isActive !== false);
+
+  const selectedAgent = agents.find((a) => a._id === selectedAgentId);
+  const availableAgents = agents.filter(
+    (a) =>
+      a.isActive &&
+      a.status === "available" &&
+      (!selectedDepartmentId || a.department?._id === selectedDepartmentId)
   );
 
-  const activeDepartments = departments.filter(
-    (dept) => dept.isActive !== false
-  );
+  const getUserName = (user: Agent["user"]) => {
+    if (typeof user === "string") return user;
+    return user.name || "Unknown";
+  };
 
   const handleCallNext = () => {
+    // If an agent is selected, use agent-based call
+    if (selectedAgentId) {
+      dispatch(callNextByAgent(selectedAgentId));
+      return;
+    }
+
+    // Otherwise use the standard admin call-next
     dispatch(
       callNext({
         counterNumber,
-        // Empty selection means: serve from any department
         ...(selectedDepartmentId ? { departmentId: selectedDepartmentId } : {}),
       })
     );
   };
 
-  const updateStatus = (status: "serving" | "completed" | "cancelled") => {
+  const updateStatus = (
+    status: "serving" | "completed" | "cancelled"
+  ) => {
     if (!activeQueue) return;
     dispatch(
       changeQueueStatus({
@@ -62,28 +93,106 @@ const CallNextPage = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="mx-auto max-w-xl">
-
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Call Next
-          </h1>
-
+          <h1 className="text-3xl font-bold text-gray-900">Call Next</h1>
           <p className="mt-2 text-gray-600">
             Call the next customer in the queue.
           </p>
         </div>
 
         <div className="rounded-xl bg-white p-8 text-center shadow">
-
+          {/* Agent selector */}
           <div className="mb-6">
-            <label className="mb-2 block text-left text-sm font-medium text-gray-700">
-              Your Counter Number
+            <label
+              htmlFor="call-next-agent"
+              className="mb-2 block text-left text-sm font-medium text-gray-700"
+            >
+              Select Agent (optional)
             </label>
-            <p className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-2xl font-bold">
-              {counterNumber}
+            <select
+              id="call-next-agent"
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              disabled={saving}
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">No agent (admin manual)</option>
+              {availableAgents.map((agent) => (
+                <option key={agent._id} value={agent._id}>
+                  {getUserName(agent.user)} - Counter {agent.counterNumber} (
+                  {agent.tokensServedToday}/{agent.maxTokensPerDay} tokens)
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-left text-xs text-gray-400">
+              Pick an agent to auto-assign tickets and enforce limits.
             </p>
           </div>
 
+          {/* Agent info card */}
+          {selectedAgent && (
+            <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-left">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-blue-900">
+                    {getUserName(selectedAgent.user)}
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    Counter {selectedAgent.counterNumber} |{" "}
+                    {selectedAgent.department?.name || "Dept"}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    selectedAgent.status === "available"
+                      ? "bg-green-100 text-green-700"
+                      : selectedAgent.status === "busy"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {selectedAgent.status}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-4 text-sm text-blue-700">
+                <span>
+                  Office: {selectedAgent.officeStart}:00 -{" "}
+                  {selectedAgent.officeEnd}:00
+                </span>
+                <span>
+                  Tokens: {selectedAgent.tokensServedToday}/
+                  {selectedAgent.maxTokensPerDay}
+                </span>
+              </div>
+              <div className="mt-2 h-2 w-full rounded-full bg-blue-200">
+                <div
+                  className="h-2 rounded-full bg-blue-600 transition-all"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (selectedAgent.tokensServedToday /
+                        selectedAgent.maxTokensPerDay) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Counter number (only show when no agent selected) */}
+          {!selectedAgentId && (
+            <div className="mb-6">
+              <label className="mb-2 block text-left text-sm font-medium text-gray-700">
+                Your Counter Number
+              </label>
+              <p className="w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-2xl font-bold">
+                {counterNumber}
+              </p>
+            </div>
+          )}
+
+          {/* Department filter */}
           <div className="mb-6">
             <label
               htmlFor="call-next-department"
@@ -94,7 +203,10 @@ const CallNextPage = () => {
             <select
               id="call-next-department"
               value={selectedDepartmentId}
-              onChange={(e) => setSelectedDepartmentId(e.target.value)}
+              onChange={(e) => {
+                setSelectedDepartmentId(e.target.value);
+                setSelectedAgentId("");
+              }}
               disabled={saving}
               className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
@@ -111,6 +223,7 @@ const CallNextPage = () => {
             </p>
           </div>
 
+          {/* Active queue display */}
           {activeQueue ? (
             <div>
               <p className="text-sm font-medium uppercase tracking-wide text-gray-500">
@@ -123,32 +236,53 @@ const CallNextPage = () => {
 
               <p className="mt-4 text-gray-600">
                 Status:{" "}
-                <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                  activeQueue.status === "waiting" ? "bg-yellow-100 text-yellow-700"
-                  : activeQueue.status === "serving" ? "bg-blue-100 text-blue-700"
-                  : activeQueue.status === "called" ? "bg-purple-100 text-purple-700"
-                  : activeQueue.status === "cancelled" ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-                }`}>
+                <span
+                  className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                    activeQueue.status === "waiting"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : activeQueue.status === "serving"
+                      ? "bg-blue-100 text-blue-700"
+                      : activeQueue.status === "called"
+                      ? "bg-purple-100 text-purple-700"
+                      : activeQueue.status === "cancelled"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
                   {activeQueue.status}
                 </span>
               </p>
 
               {activeQueue.branch && (
                 <p className="mt-2 text-sm text-gray-500">
-                  Branch: <span className="font-medium text-gray-700">{activeQueue.branch.name}</span>
+                  Branch:{" "}
+                  <span className="font-medium text-gray-700">
+                    {activeQueue.branch.name}
+                  </span>
                 </p>
               )}
 
               {activeQueue.department && (
                 <p className="mt-1 text-sm text-gray-500">
-                  Department: <span className="font-medium text-gray-700">{activeQueue.department.name}</span>
+                  Department:{" "}
+                  <span className="font-medium text-gray-700">
+                    {activeQueue.department.name}
+                  </span>
                 </p>
               )}
 
               <p className="mt-1 text-sm text-gray-500">
-                Counter: <span className="font-medium text-gray-700">{activeQueue.counterNumber ?? counterNumber}</span>
+                Counter:{" "}
+                <span className="font-medium text-gray-700">
+                  {activeQueue.counterNumber ?? counterNumber}
+                </span>
               </p>
+
+              {activeQueue.status === "called" && (
+                <p className="mt-3 text-sm text-amber-600">
+                  Customer has 2 minutes to arrive. Auto-skip if no show.
+                </p>
+              )}
 
               <div className="mt-6 flex flex-col gap-3">
                 {activeQueue.status === "called" && (
@@ -173,7 +307,8 @@ const CallNextPage = () => {
                   </button>
                 )}
 
-                {(activeQueue.status === "called" || activeQueue.status === "serving") && (
+                {(activeQueue.status === "called" ||
+                  activeQueue.status === "serving") && (
                   <button
                     type="button"
                     onClick={() => updateStatus("cancelled")}
@@ -184,11 +319,12 @@ const CallNextPage = () => {
                   </button>
                 )}
 
-                {(activeQueue.status === "completed" || activeQueue.status === "cancelled") && (
-                  <p className="text-sm text-gray-500">
-                    This queue has been {activeQueue.status}.
-                  </p>
-                )}
+                {activeQueue.status === "completed" ||
+                  (activeQueue.status === "cancelled" && (
+                    <p className="text-sm text-gray-500">
+                      This queue has been {activeQueue.status}.
+                    </p>
+                  ))}
               </div>
             </div>
           ) : (
@@ -208,12 +344,24 @@ const CallNextPage = () => {
           <button
             type="button"
             onClick={handleCallNext}
-            disabled={saving}
+            disabled={
+              saving ||
+              (!!selectedAgentId && selectedAgent?.status !== "available")
+            }
             className="mt-8 w-full rounded-lg bg-gray-900 px-4 py-4 text-lg font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Calling..." : "Call Next Customer"}
+            {saving
+              ? "Calling..."
+              : selectedAgentId
+              ? `Call Next (${getUserName(selectedAgent!.user)})`
+              : "Call Next Customer"}
           </button>
 
+          {/* Auto-call info */}
+          <p className="mt-4 text-xs text-gray-400">
+            Auto-call: next ticket is called automatically 30s after completing
+            one. No-show timeout: 2 minutes.
+          </p>
         </div>
       </div>
     </div>
