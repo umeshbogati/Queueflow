@@ -8,6 +8,7 @@ import Branch from "../src/models/Branch.js";
 import Department from "../src/models/Department.js";
 import Queue from "../src/models/Queue.js";
 import Notification from "../src/models/Notification.js";
+import Agent from "../src/models/Agent.js";
 
 // Helper to get today's date in YYYY-MM-DD format (used for seeding queues)
 const today = () => {
@@ -26,6 +27,7 @@ const run = async () => {
         Department.deleteMany({}),
         Queue.deleteMany({}),
         Notification.deleteMany({}),
+        Agent.deleteMany({}),
     ]);
 
     // ---- 2) Users -----------------------------------------------------------
@@ -74,7 +76,56 @@ const run = async () => {
         throw new Error("Department seeding failed");
     }
 
-    // ---- 5) Queues ----------------------------------------------------------
+    // ---- 5) Agents ----------------------------------------------------------
+    console.log("Creating agents...");
+    const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
+
+    const [agent1, agent2, agent3] = await Agent.create([
+        {
+            user: user1._id,
+            branch: mainBranch._id,
+            department: mainReception._id,
+            counterNumber: 1,
+            officeStart: 9,
+            officeEnd: 17,
+            maxTokensPerDay: 20,
+            tokensServedToday: 0,
+            lastResetDate: todayStr,
+            isActive: true,
+            status: "available",
+        },
+        {
+            user: user2._id,
+            branch: mainBranch._id,
+            department: mainPharmacy._id,
+            counterNumber: 2,
+            officeStart: 9,
+            officeEnd: 17,
+            maxTokensPerDay: 20,
+            tokensServedToday: 0,
+            lastResetDate: todayStr,
+            isActive: true,
+            status: "available",
+        },
+        {
+            user: user3._id,
+            branch: cityBranch._id,
+            department: cityReception._id,
+            counterNumber: 1,
+            officeStart: 9,
+            officeEnd: 17,
+            maxTokensPerDay: 15,
+            tokensServedToday: 0,
+            lastResetDate: todayStr,
+            isActive: true,
+            status: "available",
+        },
+    ]);
+    if (!agent1 || !agent2 || !agent3) {
+        throw new Error("Agent seeding failed");
+    }
+
+    // ---- 6) Queues ----------------------------------------------------------
     // Helper to build one ticket. `status` decides which timestamps we set,
     // mirroring what updateQueueStatus/callNextQueue do in real usage.
     // Ticket numbers restart at 1 per department per day, like createQueue.
@@ -129,7 +180,7 @@ const run = async () => {
     await makeTicket(cityPharmacy, user2, "waiting");
     await makeTicket(citySupport, user1, "called");
 
-    // ---- 6) Done ------------------------------------------------------------
+    // ---- 7) Done ------------------------------------------------------------
     console.log("\n Seed complete!");
     console.log("──────────────────────────────────────────────");
     console.log("Login accounts (password for ALL: password123)");
@@ -138,6 +189,11 @@ const run = async () => {
     console.log(`  Customer 1: ${user1.email}  (Ramesh Kumar)`);
     console.log(`  Customer 2: ${user2.email}  (shyam Bhatta)`);
     console.log(`  Customer 3: ${user3.email}  (Sita Sharma)`);
+    console.log("──────────────────────────────────────────────");
+    console.log("Agents created:");
+    console.log(`  ${user1.name} -> ${mainReception.name} (Counter 1, 9-17h, 20 tokens/day)`);
+    console.log(`  ${user2.name} -> ${mainPharmacy.name} (Counter 2, 9-17h, 20 tokens/day)`);
+    console.log(`  ${user3.name} -> ${cityReception.name} (Counter 1, 9-17h, 15 tokens/day)`);
     console.log("──────────────────────────────────────────────");
 
     await mongoose.disconnect();
