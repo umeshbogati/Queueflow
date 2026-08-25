@@ -13,6 +13,14 @@ export const SOCKET_EVENTS = {
     QUEUE_POSITION: "queue:position",
     // real-time push of a newly created notification to one user's private room
     NOTIFICATION_NEW: "notification:new",
+    // agent status/data changes
+    AGENT_UPDATED: "agent:updated",
+    // agent stats updates
+    AGENT_STATS: "agent:stats",
+    // auto-call next countdown notification
+    AUTO_CALL_NEXT: "auto:call-next",
+    // customer no-show: ticket skipped, next customer called
+    QUEUE_NO_SHOW: "queue:no-show",
 } as const;
 
 export const SOCKET_ROOMS = {

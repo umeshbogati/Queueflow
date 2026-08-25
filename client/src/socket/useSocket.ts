@@ -5,6 +5,7 @@ import type { Queue, QueueStats } from "../api/queueApi";
 import type { Branch } from "../api/branchApi";
 import type { Department } from "../api/departmentApi";
 import type { Notification } from "../api/notificationApi";
+import type { Agent } from "../api/agentApi";
 
 const useSocketConnected = () => {
     const [isConnected, setIsConnected] = useState(socket.connected);
@@ -156,6 +157,12 @@ export const useAdminSocket = () => {
         socket.on("queue:called", handleQueueUpdated);
         socket.on("stats:updated", handleStatsUpdated);
 
+        const handleAgentUpdated = (data: Agent) => {
+            dispatch({ type: "agent/applyAgentUpdate", payload: data });
+        };
+
+        socket.on("agent:updated", handleAgentUpdated);
+
         return () => {
             socket.off("branch:created", handleBranchCreated);
             socket.off("branch:updated", handleBranchUpdated);
@@ -167,6 +174,7 @@ export const useAdminSocket = () => {
             socket.off("queue:updated", handleQueueUpdated);
             socket.off("queue:called", handleQueueUpdated);
             socket.off("stats:updated", handleStatsUpdated);
+            socket.off("agent:updated", handleAgentUpdated);
         };
     }, [isConnected, dispatch]);
 };

@@ -1,6 +1,6 @@
 import { io } from "../server.js";
 import { SOCKET_EVENTS, SOCKET_ROOMS } from "./socketEvents.js";
-import type { QueueData, BranchData, DepartmentData, QueueStatsData, QueuePositionData, NotificationData } from "./socketTypes.js";
+import type { QueueData, BranchData, DepartmentData, QueueStatsData, QueuePositionData, NotificationData, AgentData, AutoCallNextData, NoShowData } from "./socketTypes.js";
 
 export const emitQueueCreated = (data: QueueData, branchId: string, departmentId: string) => {
     io.to(SOCKET_ROOMS.branch(branchId)).to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.QUEUE_CREATED, data);
@@ -70,4 +70,21 @@ export const emitNotificationCreated = (data: NotificationData, userId: string) 
 // Push one waiting customer's live spot in the line to their private room.
 export const emitQueuePosition = (data: QueuePositionData, userId: string) => {
     io.to(SOCKET_ROOMS.user(userId)).emit(SOCKET_EVENTS.QUEUE_POSITION, data);
+};
+
+// Emit agent status/data changes to admin room
+export const emitAgentUpdated = (data: AgentData) => {
+    io.to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.AGENT_UPDATED, data);
+};
+
+// Emit auto-call next countdown to admin room
+export const emitAutoCallNext = (agentId: string, data: Omit<AutoCallNextData, "agentId">) => {
+    io.to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.AUTO_CALL_NEXT, { ...data, agentId });
+};
+
+// Emit no-show event to admin, branch, and department rooms
+export const emitQueueNoShow = (data: NoShowData) => {
+    io.to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.QUEUE_NO_SHOW, data);
+    io.to(SOCKET_ROOMS.branch(data.branchId)).emit(SOCKET_EVENTS.QUEUE_NO_SHOW, data);
+    io.to(SOCKET_ROOMS.department(data.departmentId)).emit(SOCKET_EVENTS.QUEUE_NO_SHOW, data);
 };

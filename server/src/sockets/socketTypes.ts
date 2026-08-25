@@ -21,6 +21,7 @@ export interface QueueData {
     branch: string | { _id: string; name: string; location?: string };
     department: string | { _id: string; name: string; prefix?: string };
     customer: string | { _id: string; name?: string };
+    agent?: string | { _id: string; name?: string; counterNumber?: number };
     status: QueueStatus;
     date: string;
     counterNumber?: number;
@@ -55,6 +56,36 @@ export interface QueueStatsData {
     cancelled: number;
 }
 
+export interface AgentData {
+    _id: string;
+    user: string | { _id: string; name: string; email?: string };
+    branch: string | { _id: string; name: string; location?: string };
+    department: string | { _id: string; name: string; prefix?: string };
+    counterNumber: number;
+    officeStart: number;
+    officeEnd: number;
+    maxTokensPerDay: number;
+    tokensServedToday: number;
+    isActive: boolean;
+    status: "available" | "busy" | "offline";
+}
+
+export interface AutoCallNextData {
+    agentId: string;
+    departmentId: string;
+    waitingCount: number;
+    delayMs: number;
+}
+
+export interface NoShowData {
+    queueId: string;
+    displayNumber: string;
+    agentId: string;
+    departmentId: string;
+    branchId: string;
+    message: string;
+}
+
 // Live position of one waiting ticket, pushed to its owner's private room
 export interface QueuePositionData {
     queueId: string;
@@ -77,6 +108,12 @@ export interface ServerToClientEvents {
     "queue:position": (data: QueuePositionData) => void;
     // fired to the private `user:{id}` room whenever a notification is created
     "notification:new": (data: NotificationData) => void;
+    // fired when an agent's status or data changes
+    "agent:updated": (data: AgentData) => void;
+    // auto-call next countdown notification
+    "auto:call-next": (data: AutoCallNextData) => void;
+    // customer no-show: ticket skipped
+    "queue:no-show": (data: NoShowData) => void;
 }
 
 export interface ClientToServerEvents {
