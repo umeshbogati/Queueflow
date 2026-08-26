@@ -9,6 +9,7 @@ import type { QueueData } from "../sockets/socketTypes.js";
 import { createAndEmitNotification } from "./notificationService.js";
 import { isWithinOfficeHours, startNoShowTimer } from "./agentService.js";
 import { cancelNoShowTimer } from "./agentService.js";
+import { incrementTokensServed } from "./agentService.js";
 
 // Local date as YYYY-MM-DD - matches Queue.date storage format
 const today = (): string => {
@@ -441,6 +442,15 @@ export const updateQueueStatus = async (
     }
 
     await queue.save();
+
+    // If a ticket is completed and has an agent assigned, count the token
+    if (status === "completed" && queue.agent) {
+        try {
+            await incrementTokensServed(queue.agent.toString());
+        } catch {
+            // Token increment failure should not block ticket completion
+        }
+    }
 
     const populated = await Queue.findById(queue._id)
         .populate("branch", "name location")

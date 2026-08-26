@@ -424,7 +424,7 @@ export const canServeMore = async (agentId: string): Promise<{ allowed: boolean;
 };
 
 // Increment tokens served for an agent
-const incrementTokensServed = async (agentId: string) => {
+export const incrementTokensServed = async (agentId: string) => {
     if (!mongoose.Types.ObjectId.isValid(agentId)) {
         throw new Error("Invalid agent ID");
     }

@@ -144,6 +144,25 @@ const agentSlice = createSlice({
       } else {
         state.agents.unshift(updatedAgent);
       }
+
+      const statIndex = state.stats.findIndex(
+        (s) => s.agent._id === updatedAgent._id
+      );
+      if (statIndex !== -1) {
+        const existing = state.stats[statIndex];
+        state.stats[statIndex] = {
+          ...existing,
+          agent: updatedAgent,
+          tokensRemaining: Math.max(
+            0,
+            updatedAgent.maxTokensPerDay - updatedAgent.tokensServedToday
+          ),
+          currentlyServing:
+            updatedAgent.status === "busy"
+              ? existing.currentlyServing
+              : 0,
+        };
+      }
     },
   },
   extraReducers: (builder) => {

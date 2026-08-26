@@ -351,12 +351,12 @@ const CallNextPage = () => {
                   </button>
                 )}
 
-                {activeQueue.status === "completed" ||
-                  (activeQueue.status === "cancelled" && (
+                {(activeQueue.status === "completed" ||
+                  activeQueue.status === "cancelled") && (
                     <p className="text-sm text-gray-500">
                       This queue has been {activeQueue.status}.
                     </p>
-                  ))}
+                  )}
               </div>
             </div>
           ) : (
