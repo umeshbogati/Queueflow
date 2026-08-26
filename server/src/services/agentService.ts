@@ -69,8 +69,7 @@ export const cancelNoShowTimer = (queueId: string): void => {
     }
 };
 
-// Start no-show timer for a called ticket
-// If customer doesn't move to "serving" within timeout, auto-cancel and call next
+// Start a no-show timer for a queue ticket (if customer doesn't show up in time)
 export const startNoShowTimer = (queueId: string, agentId: string | null, timeoutMs: number = NO_SHOW_TIMEOUT_MS): void => {
     cancelNoShowTimer(queueId);
 

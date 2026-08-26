@@ -24,10 +24,7 @@ const initialState: NotificationState = {
   loading: false,
   error: null,
 };
-
-// ---- Thunks (REST calls) ----------------------------------------------------
-
-// Load history on page load / after refresh
+// async thunks for fetching notifications and unread count, marking as read, etc.
 export const fetchNotifications = createAsyncThunk<
   Notification[],
   void,
@@ -98,8 +95,7 @@ const notificationSlice = createSlice({
         // keep the list capped at 20 to match the REST endpoint
         if (state.items.length > 20) state.items.pop();
       }
-      // Mark it as "just arrived live". REST history loads never touch
-      // this field, so old history can never swallow a fresh toast.
+      // update the "last live" notification for the toast, and bump the unread count if it's unread
       state.lastLive = action.payload;
       if (!action.payload.isRead) {
         state.unreadCount += 1;

@@ -6,6 +6,7 @@ import type { Branch } from "../api/branchApi";
 import type { Department } from "../api/departmentApi";
 import type { Notification } from "../api/notificationApi";
 import type { Agent } from "../api/agentApi";
+import type { AutoCallNextState, NoShowState } from "../store/slices/queueSlice";
 
 const useSocketConnected = () => {
     const [isConnected, setIsConnected] = useState(socket.connected);
@@ -36,9 +37,7 @@ export const useSocketConnection = () => {
         } else {
             disconnectSocket();
         }
-        // No disconnect-on-cleanup here: StrictMode remounts effects twice,
-        // and tearing down a still-connecting socket caused missed rooms.
-        // Logout is covered because token changes -> else branch disconnects.
+        // Cleanup on mount and unmount
     }, [token]);
 
     useEffect(() => {
@@ -51,13 +50,11 @@ export const useSocketConnection = () => {
             if (user.role === "admin") {
                 joinAdmin();
             }
-            // EVERYONE - admins included - joins their own private room,
-            // otherwise personal notifications never arrive.
+            // Join the user-specific room for receiving personal notifications and updates
             joinUser(userId);
         };
 
-        // Join now AND on every future reconnect (rooms are per-connection
-        // on the server - without this, a dropped socket rejoins nothing).
+        // Join rooms on initial connection and whenever the socket reconnects
         joinRooms();
         socket.on("connect", joinRooms);
 
@@ -84,8 +81,7 @@ export const useQueueSocket = (userId?: string) => {
             dispatch({ type: "queue/applyQueueUpdate", payload: data });
         };
 
-        // Live "you are #N in line" while waiting - server pushes this
-        // whenever someone ahead is called, served, completed or cancelled.
+     // Handle queue position updates for the user
         const handleQueuePosition = (data: { queueId: string; position: number }) => {
             dispatch({ type: "queue/applyQueuePosition", payload: data });
         };
@@ -163,6 +159,39 @@ export const useAdminSocket = () => {
 
         socket.on("agent:updated", handleAgentUpdated);
 
+        const handleAutoCallNext = (data: {
+          agentId: string;
+          departmentId: string;
+          waitingCount: number;
+          delayMs: number;
+        }) => {
+          dispatch({
+            type: "queue/applyAutoCallNext",
+            payload: {
+              ...data,
+              startedAt: new Date().toISOString(),
+            } satisfies AutoCallNextState,
+          });
+        };
+
+        const handleNoShow = (data: {
+          queueId: string;
+          displayNumber: string;
+          message: string;
+        }) => {
+          dispatch({
+            type: "queue/applyNoShow",
+            payload: data satisfies NoShowState,
+          });
+          // Auto-clear after 5 seconds so the banner disappears
+          setTimeout(() => {
+            dispatch({ type: "queue/clearNoShow" });
+          }, 5000);
+        };
+
+        socket.on("auto:call-next", handleAutoCallNext);
+        socket.on("queue:no-show", handleNoShow);
+
         return () => {
             socket.off("branch:created", handleBranchCreated);
             socket.off("branch:updated", handleBranchUpdated);
@@ -175,6 +204,8 @@ export const useAdminSocket = () => {
             socket.off("queue:called", handleQueueUpdated);
             socket.off("stats:updated", handleStatsUpdated);
             socket.off("agent:updated", handleAgentUpdated);
+            socket.off("auto:call-next", handleAutoCallNext);
+            socket.off("queue:no-show", handleNoShow);
         };
     }, [isConnected, dispatch]);
 };

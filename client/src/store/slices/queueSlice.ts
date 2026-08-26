@@ -18,11 +18,27 @@ import type {
 
 import { unwrap, getMessage } from "../utils";
 
+export interface AutoCallNextState {
+  agentId: string;
+  departmentId: string;
+  waitingCount: number;
+  delayMs: number;
+  startedAt: string;
+}
+
+export interface NoShowState {
+  queueId: string;
+  displayNumber: string;
+  message: string;
+}
+
 interface QueueState {
   queues: Queue[];
   selectedQueue: Queue | null;
   currentQueue: Queue | null;
   stats: QueueStats | null;
+  autoCallNext: AutoCallNextState | null;
+  noShow: NoShowState | null;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -33,6 +49,8 @@ const initialState: QueueState = {
   selectedQueue: null,
   currentQueue: null,
   stats: null,
+  autoCallNext: null,
+  noShow: null,
   loading: false,
   saving: false,
   error: null,
@@ -186,6 +204,18 @@ const queueSlice = createSlice({
     applyStatsUpdate: (state, action) => {
       state.stats = action.payload as QueueStats;
     },
+    applyAutoCallNext: (state, action) => {
+      state.autoCallNext = action.payload as AutoCallNextState;
+    },
+    clearAutoCallNext: (state) => {
+      state.autoCallNext = null;
+    },
+    applyNoShow: (state, action) => {
+      state.noShow = action.payload as NoShowState;
+    },
+    clearNoShow: (state) => {
+      state.noShow = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -300,6 +330,10 @@ export const {
   applyQueueUpdate,
   applyQueuePosition,
   applyStatsUpdate,
+  applyAutoCallNext,
+  clearAutoCallNext,
+  applyNoShow,
+  clearNoShow,
 } = queueSlice.actions;
 
 export default queueSlice.reducer;

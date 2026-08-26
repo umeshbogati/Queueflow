@@ -5,6 +5,7 @@ import {
   changeQueueStatus,
   fetchQueues,
   clearQueueError,
+  clearAutoCallNext,
 } from "../../store/slices/queueSlice";
 import { fetchDepartments } from "../../store/slices/departmentSlice";
 import {
@@ -12,7 +13,10 @@ import {
   callNextByAgent,
 } from "../../store/slices/agentSlice";
 import { useAdminSocket } from "../../socket/useSocket";
+import { useCountdown } from "../../hooks/useCountdown";
 import type { Agent } from "../../api/agentApi";
+
+const NO_SHOW_TIMEOUT_MS = 120_000;
 
 const CallNextPage = () => {
   const dispatch = useAppDispatch();
@@ -26,6 +30,7 @@ const CallNextPage = () => {
   const counterNumber = useAppSelector(
     (state) => state.counter.currentCounterNumber
   );
+  const autoCallNext = useAppSelector((state) => state.queue.autoCallNext);
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
@@ -45,6 +50,23 @@ const CallNextPage = () => {
   const activeQueue =
     currentQueue ??
     queues.find((q) => q.status === "called" || q.status === "serving");
+
+  const noShowRemaining = useCountdown(
+    activeQueue?.status === "called" ? activeQueue.calledAt : null,
+    NO_SHOW_TIMEOUT_MS,
+  );
+
+  const autoCallRemaining = useCountdown(
+    autoCallNext?.startedAt,
+    autoCallNext?.delayMs ?? 30_000,
+  );
+
+  // Auto-clear auto-call-next state when countdown finishes
+  useEffect(() => {
+    if (autoCallRemaining === 0 && autoCallNext) {
+      dispatch(clearAutoCallNext());
+    }
+  }, [autoCallRemaining, autoCallNext, dispatch]);
 
   const activeDepartments = departments.filter((d) => d.isActive !== false);
 
@@ -278,10 +300,20 @@ const CallNextPage = () => {
                 </span>
               </p>
 
-              {activeQueue.status === "called" && (
-                <p className="mt-3 text-sm text-amber-600">
-                  Customer has 2 minutes to arrive. Auto-skip if no show.
-                </p>
+              {activeQueue.status === "called" && noShowRemaining != null && (
+                <div className="mt-3 rounded-lg bg-amber-50 px-4 py-3">
+                  <p className="text-sm text-amber-700">No-show timer</p>
+                  <p className={`text-2xl font-bold tabular-nums ${
+                    noShowRemaining <= 30 ? "text-red-600" : "text-amber-700"
+                  }`}>
+                    {Math.floor(noShowRemaining / 60)}:{String(noShowRemaining % 60).padStart(2, "0")}
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    {noShowRemaining <= 30
+                      ? "Customer will be skipped soon."
+                      : "Customer has this much time to arrive."}
+                  </p>
+                </div>
               )}
 
               <div className="mt-6 flex flex-col gap-3">
@@ -341,6 +373,20 @@ const CallNextPage = () => {
             </div>
           )}
 
+          {autoCallNext && autoCallRemaining != null && autoCallRemaining > 0 && (
+            <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+              <p className="text-sm font-medium text-blue-700">
+                Auto-calling next ticket in{" "}
+                <span className="text-lg font-bold tabular-nums text-blue-900">
+                  {autoCallRemaining}s
+                </span>
+              </p>
+              <p className="text-xs text-blue-600">
+                {autoCallNext.waitingCount} ticket{autoCallNext.waitingCount !== 1 ? "s" : ""} waiting
+              </p>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleCallNext}
@@ -357,10 +403,8 @@ const CallNextPage = () => {
               : "Call Next Customer"}
           </button>
 
-          {/* Auto-call info */}
           <p className="mt-4 text-xs text-gray-400">
-            Auto-call: next ticket is called automatically 30s after completing
-            one. No-show timeout: 2 minutes.
+            No-show timeout: 2 minutes. Auto-call-next: 30s after completing a ticket.
           </p>
         </div>
       </div>

@@ -20,6 +20,7 @@ export interface Queue {
   position?: number;
   branch?: QueueParty;
   department?: QueueParty;
+  calledAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }

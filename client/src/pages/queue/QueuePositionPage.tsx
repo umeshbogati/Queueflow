@@ -7,6 +7,9 @@ import {
   clearQueueError,
 } from "../../store/slices/queueSlice";
 import { useQueueSocket } from "../../socket/useSocket";
+import { useCountdown } from "../../hooks/useCountdown";
+
+const NO_SHOW_TIMEOUT_MS = 120_000;
 
 const QueuePositionPage = () => {
   const dispatch = useAppDispatch();
@@ -32,6 +35,11 @@ const QueuePositionPage = () => {
     if (!selectedQueue) return;
     dispatch(cancelMyTicket(selectedQueue._id));
   };
+
+  const noShowRemaining = useCountdown(
+    selectedQueue?.status === "called" ? selectedQueue.calledAt : null,
+    NO_SHOW_TIMEOUT_MS,
+  );
 
   const canCancel =
     selectedQueue &&
@@ -96,6 +104,24 @@ const QueuePositionPage = () => {
                   {selectedQueue.status}
                 </span>
               </p>
+
+              {selectedQueue.status === "called" && noShowRemaining != null && (
+                <div className="mt-4 rounded-lg bg-amber-50 px-4 py-3">
+                  <p className="text-sm text-amber-700">
+                    Please arrive at the counter within
+                  </p>
+                  <p className={`text-3xl font-bold tabular-nums ${
+                    noShowRemaining <= 30 ? "text-red-600" : "text-amber-700"
+                  }`}>
+                    {Math.floor(noShowRemaining / 60)}:{String(noShowRemaining % 60).padStart(2, "0")}
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    {noShowRemaining <= 30
+                      ? "Hurry! Your ticket will be cancelled soon."
+                      : "Your ticket will be cancelled if you don't arrive in time."}
+                  </p>
+                </div>
+              )}
 
               {selectedQueue.branch && (
                 <p className="mt-2 text-sm text-gray-500">
