@@ -14,13 +14,20 @@ export interface QueueParty {
 
 export interface Queue {
   _id: string;
+  ticketNumber: number;
   displayNumber: string;
   status: QueueStatus;
   counterNumber?: number;
   position?: number;
   branch?: QueueParty;
   department?: QueueParty;
+  customer?: QueueParty;
+  agent?: QueueParty;
   calledAt?: string;
+  servingAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  date?: string;
   createdAt?: string;
   updatedAt?: string;
 }

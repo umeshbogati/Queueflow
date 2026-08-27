@@ -4,12 +4,12 @@ import Branch from "../models/Branch.js";
 import Department from "../models/Department.js";
 import { User } from "../models/User.js";
 import Agent from "../models/Agent.js";
-import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated, emitQueuePosition } from "../sockets/emitter.js";
+import { emitQueueCreated, emitQueueUpdated, emitQueueCalled, emitStatsUpdated, emitQueuePosition, emitAutoCallNext, emitAgentUpdated } from "../sockets/emitter.js";
 import type { QueueData } from "../sockets/socketTypes.js";
 import { createAndEmitNotification } from "./notificationService.js";
 import { isWithinOfficeHours, startNoShowTimer } from "./agentService.js";
 import { cancelNoShowTimer } from "./agentService.js";
-import { incrementTokensServed } from "./agentService.js";
+import { incrementTokensServed, scheduleAutoCallNext, toAgentData } from "./agentService.js";
 
 // Local date as YYYY-MM-DD - matches Queue.date storage format
 const today = (): string => {
@@ -449,6 +449,73 @@ export const updateQueueStatus = async (
             await incrementTokensServed(queue.agent.toString());
         } catch {
             // Token increment failure should not block ticket completion
+        }
+
+        // Set agent back to available (if not at token limit)
+        try {
+            const agentIdStr = queue.agent.toString();
+            const agent = await Agent.findById(agentIdStr);
+            if (agent && agent.tokensServedToday < agent.maxTokensPerDay) {
+                agent.status = "available";
+                await agent.save();
+                const agentPopulated = await Agent.findById(agent._id)
+                    .populate("user", "name email")
+                    .populate("branch", "name location")
+                    .populate("department", "name prefix");
+                emitAgentUpdated(toAgentData(agentPopulated!));
+            }
+        } catch {
+            // Agent status update failure should not block ticket completion
+        }
+    }
+
+    // Schedule auto-call-next when a ticket is completed (works for both
+    // agent-assigned and admin-manual paths)
+    if (status === "completed") {
+        try {
+            const waitingCount = await Queue.countDocuments({
+                department: queue.department,
+                date: queue.date,
+                status: "waiting",
+            });
+
+            if (waitingCount > 0) {
+                // If queue has an agent, use that agent for auto-call
+                // Otherwise find an available agent in the same department
+                let targetAgentId: string | null = queue.agent
+                    ? queue.agent.toString()
+                    : null;
+
+                if (!targetAgentId) {
+                    const availableAgent = await Agent.findOne({
+                        department: queue.department,
+                        isActive: true,
+                        status: "available",
+                    });
+                    if (availableAgent) {
+                        targetAgentId = availableAgent._id.toString();
+                    }
+                }
+
+                if (targetAgentId) {
+                    const targetAgent = await Agent.findById(targetAgentId);
+                    if (
+                        targetAgent &&
+                        targetAgent.isActive &&
+                        targetAgent.status === "available" &&
+                        targetAgent.tokensServedToday < targetAgent.maxTokensPerDay
+                    ) {
+                        emitAutoCallNext(targetAgentId, {
+                            departmentId: queue.department.toString(),
+                            waitingCount,
+                            delayMs: 30_000,
+                        });
+                        scheduleAutoCallNext(targetAgentId);
+                    }
+                }
+            }
+        } catch {
+            // Auto-call scheduling failure should not block ticket completion
         }
     }
 

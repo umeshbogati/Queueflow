@@ -158,7 +158,7 @@ export const startNoShowTimer = (queueId: string, agentId: string | null, timeou
 
 // Schedule auto-call next for an agent after a delay
 // When a ticket is completed, the next waiting ticket is automatically called
-const scheduleAutoCallNext = (agentId: string, delayMs: number = AUTO_CALL_DELAY_MS): void => {
+export const scheduleAutoCallNext = (agentId: string, delayMs: number = AUTO_CALL_DELAY_MS): void => {
     // Cancel any existing pending auto-call for this agent
     cancelPendingAutoCall(agentId);
 
@@ -699,7 +699,7 @@ const getQueueStatsHelper = async () => {
 };
 
 // Helper: convert agent to socket-safe data
-const toAgentData = (agent: InstanceType<typeof Agent>): AgentData => {
+export const toAgentData = (agent: InstanceType<typeof Agent>): AgentData => {
     const userRaw = agent.user as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; email?: string };
     const branchRaw = agent.branch as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; location?: string };
     const departmentRaw = agent.department as unknown as mongoose.Types.ObjectId | { _id: mongoose.Types.ObjectId; name: string; prefix?: string };

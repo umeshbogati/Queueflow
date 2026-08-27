@@ -150,6 +150,8 @@ const agentSlice = createSlice({
       );
       if (statIndex !== -1) {
         const existing = state.stats[statIndex];
+        const tokensIncreased =
+          updatedAgent.tokensServedToday > existing.agent.tokensServedToday;
         state.stats[statIndex] = {
           ...existing,
           agent: updatedAgent,
@@ -157,10 +159,10 @@ const agentSlice = createSlice({
             0,
             updatedAgent.maxTokensPerDay - updatedAgent.tokensServedToday
           ),
-          currentlyServing:
-            updatedAgent.status === "busy"
-              ? existing.currentlyServing
-              : 0,
+          completedToday: tokensIncreased
+            ? existing.completedToday + 1
+            : existing.completedToday,
+          currentlyServing: updatedAgent.status === "busy" ? 1 : 0,
         };
       }
     },

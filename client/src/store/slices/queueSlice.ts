@@ -179,6 +179,19 @@ const queueSlice = createSlice({
         state.selectedQueue = updatedQueue;
       }
       if (state.currentQueue?._id === updatedQueue._id) {
+        if (
+          updatedQueue.status === "completed" ||
+          updatedQueue.status === "cancelled"
+        ) {
+          state.currentQueue = null;
+        } else {
+          state.currentQueue = updatedQueue;
+        }
+      } else if (
+        !state.currentQueue &&
+        (updatedQueue.status === "called" ||
+          updatedQueue.status === "serving")
+      ) {
         state.currentQueue = updatedQueue;
       }
     },
