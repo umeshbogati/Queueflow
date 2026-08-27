@@ -4,9 +4,11 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchBranches } from "../../store/slices/branchSlice";
 import { fetchDepartments } from "../../store/slices/departmentSlice";
 import { fetchQueues, addQueue, clearQueueError } from "../../store/slices/queueSlice";
+import { useAdminSocket } from "../../socket/useSocket";
 
 const QueuePage = () => {
   const dispatch = useAppDispatch();
+  useAdminSocket();
 
   const { branches, loading: branchLoading } = useAppSelector(
     (state) => state.branch

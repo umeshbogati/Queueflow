@@ -188,9 +188,11 @@ const queueSlice = createSlice({
           state.currentQueue = updatedQueue;
         }
       } else if (
-        !state.currentQueue &&
         (updatedQueue.status === "called" ||
-          updatedQueue.status === "serving")
+          updatedQueue.status === "serving") &&
+        (!state.currentQueue ||
+          state.currentQueue.status === "completed" ||
+          state.currentQueue.status === "cancelled")
       ) {
         state.currentQueue = updatedQueue;
       }

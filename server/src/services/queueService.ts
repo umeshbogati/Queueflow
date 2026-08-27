@@ -17,6 +17,36 @@ const today = (): string => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
+// Default delay before auto-calling the next waiting ticket (30 seconds) -
+// matches the agent-based AUTO_CALL_DELAY_MS so both paths behave the same.
+const MANUAL_AUTO_CALL_DELAY_MS = 30_000;
+
+// Track pending manual auto-call timers (key: departmentId) so they can be
+// cancelled/superseded.
+const pendingManualAutoCalls = new Map<string, ReturnType<typeof setTimeout>>();
+
+// After a ticket is completed in a department, if no AGENT is available to
+// take over, still keep the (admin-manual) line moving: schedule a manual
+// call of the next waiting ticket in that department after the standard
+// delay. This way the next waiting customer is auto-called and shown with the
+// no-show countdown even when no agent is selected/available.
+const scheduleManualAutoCall = (departmentId: string, delayMs: number = MANUAL_AUTO_CALL_DELAY_MS): void => {
+    const existing = pendingManualAutoCalls.get(departmentId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(async () => {
+        pendingManualAutoCalls.delete(departmentId);
+        try {
+            if (!mongoose.Types.ObjectId.isValid(departmentId)) return;
+            await callNextQueue({ departmentId });
+        } catch {
+            // Best-effort: if there is no waiting ticket, nothing to call
+        }
+    }, delayMs);
+
+    pendingManualAutoCalls.set(departmentId, timer);
+};
+
 // Push the live spot of EVERY waiting ticket in a department to its owner's
 // private room. Called whenever the line changes (call next, complete,
 // cancel, delete) so waiting customers see their number move without
@@ -443,29 +473,47 @@ export const updateQueueStatus = async (
 
     await queue.save();
 
-    // If a ticket is completed and has an agent assigned, count the token
-    if (status === "completed" && queue.agent) {
+    // If a ticket is completed, count the token toward the serving agent.
+    // Prefer the agent attached to the ticket; otherwise auto-credit an
+    // available active agent in the same department so every served ticket
+    // is counted (this fixes served counts showing too low when a ticket is
+    // called/completed through the manual admin path without an agent).
+    if (status === "completed") {
         try {
-            await incrementTokensServed(queue.agent.toString());
-        } catch {
-            // Token increment failure should not block ticket completion
-        }
+            let creditedAgentId = queue.agent ? queue.agent.toString() : null;
 
-        // Set agent back to available (if not at token limit)
-        try {
-            const agentIdStr = queue.agent.toString();
-            const agent = await Agent.findById(agentIdStr);
-            if (agent && agent.tokensServedToday < agent.maxTokensPerDay) {
-                agent.status = "available";
-                await agent.save();
-                const agentPopulated = await Agent.findById(agent._id)
-                    .populate("user", "name email")
-                    .populate("branch", "name location")
-                    .populate("department", "name prefix");
-                emitAgentUpdated(toAgentData(agentPopulated!));
+            if (!creditedAgentId) {
+                const availableAgent = await Agent.findOne({
+                    department: queue.department,
+                    isActive: true,
+                    status: "available",
+                });
+                if (availableAgent) {
+                    creditedAgentId = availableAgent._id.toString();
+                    // Attach the agent to the ticket so the same agent is
+                    // credited and the queue history stays consistent.
+                    queue.agent = availableAgent._id;
+                    await queue.save();
+                }
+            }
+
+            if (creditedAgentId) {
+                await incrementTokensServed(creditedAgentId);
+
+                // Set agent back to available (if not at token limit)
+                const agent = await Agent.findById(creditedAgentId);
+                if (agent && agent.tokensServedToday < agent.maxTokensPerDay) {
+                    agent.status = "available";
+                    await agent.save();
+                    const agentPopulated = await Agent.findById(agent._id)
+                        .populate("user", "name email")
+                        .populate("branch", "name location")
+                        .populate("department", "name prefix");
+                    emitAgentUpdated(toAgentData(agentPopulated!));
+                }
             }
         } catch {
-            // Agent status update failure should not block ticket completion
+            // Token increment failure should not block ticket completion
         }
     }
 
@@ -480,6 +528,8 @@ export const updateQueueStatus = async (
             });
 
             if (waitingCount > 0) {
+                let scheduled = false;
+
                 // If queue has an agent, use that agent for auto-call
                 // Otherwise find an available agent in the same department
                 let targetAgentId: string | null = queue.agent
@@ -511,7 +561,19 @@ export const updateQueueStatus = async (
                             delayMs: 30_000,
                         });
                         scheduleAutoCallNext(targetAgentId);
+                        scheduled = true;
                     }
+                }
+
+                // If no agent is available, still keep the manual line moving:
+                // auto-call the next waiting ticket in the same department so
+                // the next customer is called and gets the no-show countdown.
+                if (!scheduled) {
+                    const deptId =
+                        typeof queue.department === "string"
+                            ? queue.department
+                            : queue.department.toString();
+                    scheduleManualAutoCall(deptId);
                 }
             }
         } catch {

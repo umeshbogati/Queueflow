@@ -395,6 +395,36 @@ export const getAgentsByDepartment = async (departmentId: string) => {
         .populate("department", "name prefix");
 };
 
+// Reconcile agent statuses: any agent still marked "busy" but WITHOUT an
+// active (called/serving) ticket assigned today is reset back to "available".
+// A "busy" status is only valid while the agent is actually serving a customer.
+// This fixes agents getting stuck "busy" forever (e.g. server restart before a
+// no-show timer fired, a ticket cancelled mid-call, or a crash mid-flow).
+export const reconcileAgentStatuses = async (): Promise<void> => {
+    const date = today();
+
+    const busyAgents = await Agent.find({ isActive: true, status: "busy" });
+
+    for (const agent of busyAgents) {
+        const activeCount = await Queue.countDocuments({
+            agent: agent._id,
+            date,
+            status: { $in: ["called", "serving"] },
+        });
+
+        if (activeCount === 0) {
+            agent.status = "available";
+            await agent.save();
+
+            const populated = await Agent.findById(agent._id)
+                .populate("user", "name email")
+                .populate("branch", "name location")
+                .populate("department", "name prefix");
+            emitAgentUpdated(toAgentData(populated!));
+        }
+    }
+};
+
 // Check if an agent can serve more tokens today
 export const canServeMore = async (agentId: string): Promise<{ allowed: boolean; reason?: string }> => {
     if (!mongoose.Types.ObjectId.isValid(agentId)) {
@@ -462,6 +492,10 @@ export const incrementTokensServed = async (agentId: string) => {
 // Get agent performance stats
 export const getAgentStats = async () => {
     await ensureFreshCounters();
+
+    // Free any agent that is stuck "busy" without an active ticket first, so
+    // the dashboard always shows a truthful status.
+    await reconcileAgentStatuses();
 
     const date = today();
 

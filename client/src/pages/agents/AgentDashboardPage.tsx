@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchAgentStats, clearAgentError } from "../../store/slices/agentSlice";
+import { socket } from "../../socket/socket";
 import { useAdminSocket } from "../../socket/useSocket";
 
 const AgentDashboardPage = () => {
@@ -11,6 +12,25 @@ const AgentDashboardPage = () => {
 
   useEffect(() => {
     dispatch(fetchAgentStats());
+  }, [dispatch]);
+
+  // Keep the dashboard live across admin browsers/tabs: whenever any agent or
+  // queue status changes (or stats update), re-fetch the authoritative stats
+  // from the server instead of relying on the initial mount snapshot.
+  useEffect(() => {
+    const refresh = () => dispatch(fetchAgentStats());
+    socket.on("agent:updated", refresh);
+    socket.on("queue:created", refresh);
+    socket.on("queue:updated", refresh);
+    socket.on("queue:called", refresh);
+    socket.on("stats:updated", refresh);
+    return () => {
+      socket.off("agent:updated", refresh);
+      socket.off("queue:created", refresh);
+      socket.off("queue:updated", refresh);
+      socket.off("queue:called", refresh);
+      socket.off("stats:updated", refresh);
+    };
   }, [dispatch]);
 
   useEffect(() => {
