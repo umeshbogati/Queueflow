@@ -57,7 +57,7 @@ app.use((_req, res) => {
     });
 });
 
-// Global error handler for Express 5.
+// Global error handler for Express.
 // Full details stay in server logs; clients only get a generic message.
 app.use((err: any, _req: any, res: any, _next: any) => {
     console.error("Unhandled error:", err);
