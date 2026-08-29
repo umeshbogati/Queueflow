@@ -1,5 +1,17 @@
 import "dotenv/config";
 import http from "http";
+import { setServers } from "dns";
+
+// Workaround for a flaky local DNS resolver: on some Windows machines Node's
+// default resolver is pointed at 127.0.0.1 and refuses SRV lookups, which makes
+// every mongodb+srv:// (Atlas) connection fail with "querySrv ECONNREFUSED".
+// Switch to a reliable public DNS so Atlas SRV resolution always works.
+try {
+    setServers(["8.8.8.8", "1.1.1.1"]);
+} catch {
+    // Non-fatal: if setServers fails we keep whatever the OS provides.
+}
+
 import app from "./app.js";
 import { Server as SocketIOServer } from "socket.io";
 import connectDB from "./config/db.js";

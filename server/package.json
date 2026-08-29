@@ -9,7 +9,8 @@
     "build": "tsc",
     "prestart": "npm run build",
     "start": "node dist/server.js",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "migrate:atlas": "tsx scripts/migrate-local-to-atlas.ts"
   },
   "keywords": [],
   "author": "",
