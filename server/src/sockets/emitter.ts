@@ -2,29 +2,19 @@ import { io } from "../server.js";
 import { SOCKET_EVENTS, SOCKET_ROOMS } from "./socketEvents.js";
 import type { QueueData, BranchData, DepartmentData, QueueStatsData, QueuePositionData, NotificationData, AgentData, AutoCallNextData, NoShowData } from "./socketTypes.js";
 
-export const emitQueueCreated = (data: QueueData, branchId: string, departmentId: string) => {
-    io.to(SOCKET_ROOMS.branch(branchId)).to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.QUEUE_CREATED, data);
-    io.to(SOCKET_ROOMS.department(departmentId)).emit(SOCKET_EVENTS.QUEUE_CREATED, data);
+// Queue events are broadcast to every connected client: the queue list is
+// shown to admins and regular users alike, so no tab should need a manual
+// refresh to see a new ticket or a status change.
+export const emitQueueCreated = (data: QueueData) => {
+    io.emit(SOCKET_EVENTS.QUEUE_CREATED, data);
 };
 
-export const emitQueueUpdated = (data: QueueData, branchId: string, departmentId: string) => {
-    io.to(SOCKET_ROOMS.branch(branchId)).to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.QUEUE_UPDATED, data);
-    io.to(SOCKET_ROOMS.department(departmentId)).emit(SOCKET_EVENTS.QUEUE_UPDATED, data);
-
-    if (data.customer) {
-        const customerId = typeof data.customer === "string" ? data.customer : (data.customer as { _id: string })._id;
-        io.to(SOCKET_ROOMS.user(customerId)).emit(SOCKET_EVENTS.QUEUE_UPDATED, data);
-    }
+export const emitQueueUpdated = (data: QueueData) => {
+    io.emit(SOCKET_EVENTS.QUEUE_UPDATED, data);
 };
 
-export const emitQueueCalled = (data: QueueData, branchId: string, departmentId: string) => {
-    io.to(SOCKET_ROOMS.branch(branchId)).to(SOCKET_ROOMS.ADMIN).emit(SOCKET_EVENTS.QUEUE_CALLED, data);
-    io.to(SOCKET_ROOMS.department(departmentId)).emit(SOCKET_EVENTS.QUEUE_CALLED, data);
-
-    if (data.customer) {
-        const customerId = typeof data.customer === "string" ? data.customer : (data.customer as { _id: string })._id;
-        io.to(SOCKET_ROOMS.user(customerId)).emit(SOCKET_EVENTS.QUEUE_CALLED, data);
-    }
+export const emitQueueCalled = (data: QueueData) => {
+    io.emit(SOCKET_EVENTS.QUEUE_CALLED, data);
 };
 
 export const emitBranchCreated = (data: BranchData) => {

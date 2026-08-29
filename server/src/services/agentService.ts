@@ -104,19 +104,16 @@ export const startNoShowTimer = (queueId: string, agentId: string | null, timeou
                 .populate("customer", "name")
                 .populate("agent");
 
-            const queueBranchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-            const queueDeptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-
             const { emitQueueUpdated } = await import("../sockets/emitter.js");
-            emitQueueUpdated(toQueueData(populated!), queueBranchId, queueDeptId);
+            emitQueueUpdated(toQueueData(populated!));
 
             // Emit no-show event
             emitQueueNoShow({
                 queueId: queue._id.toString(),
                 displayNumber: queue.displayNumber,
                 agentId: agentId ?? "",
-                departmentId: queueDeptId,
-                branchId: queueBranchId,
+                departmentId: queue.department.toString(),
+                branchId: queue.branch.toString(),
                 message: `Ticket ${queue.displayNumber} skipped - customer did not show up`,
             });
 
@@ -597,11 +594,8 @@ export const agentCallNext = async (agentId: string) => {
         .populate("customer", "name")
         .populate("agent");
 
-    const queueBranchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-    const queueDeptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-
     const { emitQueueCalled } = await import("../sockets/emitter.js");
-    emitQueueCalled(toQueueData(populated!), queueBranchId, queueDeptId);
+    emitQueueCalled(toQueueData(populated!));
 
     await createAndEmitNotification({
         userId: queue.customer.toString(),
@@ -678,11 +672,8 @@ export const agentCompleteTicket = async (agentId: string, queueId: string) => {
         .populate("customer", "name")
         .populate("agent");
 
-    const queueBranchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-    const queueDeptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-
     const { emitQueueUpdated } = await import("../sockets/emitter.js");
-    emitQueueUpdated(toQueueData(populated!), queueBranchId, queueDeptId);
+    emitQueueUpdated(toQueueData(populated!));
 
     await createAndEmitNotification({
         userId: queue.customer.toString(),

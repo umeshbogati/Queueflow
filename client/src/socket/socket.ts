@@ -1,7 +1,9 @@
 import { io } from "socket.io-client";
 import { SOCKET_EMIT } from "./socketEvents";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+// The socket URL is determined by the VITE_SOCKET_URL environment variable, defaulting to "http://localhost:5000" if not set. Any trailing slashes are removed from the URL.
+const rawSocketURL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+const SOCKET_URL = rawSocketURL.replace(/\/+$/, "");
 
 export const socket = io(SOCKET_URL, {
     autoConnect: false,

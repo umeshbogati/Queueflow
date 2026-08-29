@@ -25,11 +25,7 @@ const MANUAL_AUTO_CALL_DELAY_MS = 30_000;
 // cancelled/superseded.
 const pendingManualAutoCalls = new Map<string, ReturnType<typeof setTimeout>>();
 
-// After a ticket is completed in a department, if no AGENT is available to
-// take over, still keep the (admin-manual) line moving: schedule a manual
-// call of the next waiting ticket in that department after the standard
-// delay. This way the next waiting customer is auto-called and shown with the
-// no-show countdown even when no agent is selected/available.
+// Schedule a manual auto-call for the next waiting ticket in a department.
 const scheduleManualAutoCall = (departmentId: string, delayMs: number = MANUAL_AUTO_CALL_DELAY_MS): void => {
     const existing = pendingManualAutoCalls.get(departmentId);
     if (existing) clearTimeout(existing);
@@ -47,10 +43,7 @@ const scheduleManualAutoCall = (departmentId: string, delayMs: number = MANUAL_A
     pendingManualAutoCalls.set(departmentId, timer);
 };
 
-// Push the live spot of EVERY waiting ticket in a department to its owner's
-// private room. Called whenever the line changes (call next, complete,
-// cancel, delete) so waiting customers see their number move without
-// refreshing. Position 1 = "you are next".
+// Emit the current position of all waiting tickets in a department/day to their respective customers.
 const emitDepartmentPositions = async (
     departmentId: string | mongoose.Types.ObjectId,
     date: string
@@ -186,9 +179,7 @@ export const createQueue = async ({
     const date = today();
     const prefix = departmentData.prefix || "Q";
 
-    // Retry on duplicate-ticket races: two concurrent requests can read the
-    // same last ticket number; the unique {department, date, ticketNumber}
-    // index rejects the loser, so recompute and try again.
+  // Attempt to create a new queue ticket, retrying if a duplicate key error occurs (due to concurrent ticket creation). Limit retries to 3 attempts.
     let queue: InstanceType<typeof Queue> | null = null;
     const MAX_ATTEMPTS = 3;
 
@@ -233,9 +224,8 @@ export const createQueue = async ({
         .populate("customer", "name")
         .populate("agent");
 
-    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
     const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-    emitQueueCreated(toQueueData(populated!), branchId, deptId);
+    emitQueueCreated(toQueueData(populated!));
 
     // Confirm the booking to the customer right away - without this, a user
     // never hears anything from the moment they take a ticket until staff
@@ -261,7 +251,9 @@ export const createQueue = async ({
     const stats = await getQueueStats();
     emitStatsUpdated(stats);
 
-    return queue;
+    // Return the populated document so the client can render branch/department
+    // names immediately instead of showing N/A until the socket event arrives.
+    return populated!;
 };
 
 export const getAllQueues = async () => {
@@ -282,10 +274,7 @@ export const getMyQueues = async (customerId: string) => {
         .populate("branch", "name location")
         .populate("department", "name prefix")
         .sort({ createdAt: -1 });
-
-    // Attach the live position (rank among today's waiting tickets of the
-    // same department) so the client can render it immediately on load -
-    // socket pushes keep it fresh after that.
+// For each waiting ticket, calculate its current position in line and include it in the returned data.
     return await Promise.all(
         queues.map(async (q) => {
             if (q.status !== "waiting") return q.toObject();
@@ -372,9 +361,7 @@ export const callNextQueue = async ({
         .populate("customer", "name")
         .populate("agent");
 
-    const queueBranchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-    const queueDeptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-    emitQueueCalled(toQueueData(populated!), queueBranchId, queueDeptId);
+    emitQueueCalled(toQueueData(populated!));
 
     // Notify the customer in real time: their ticket was just called.
     // queue.customer is still a plain ObjectId here (only `populated` has it expanded).
@@ -587,9 +574,7 @@ export const updateQueueStatus = async (
         .populate("customer", "name")
         .populate("agent");
 
-    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-    emitQueueUpdated(toQueueData(populated!), branchId, deptId);
+    emitQueueUpdated(toQueueData(populated!));
 
     // Map each staff action to a customer-facing notification.
     // ("called" via this path also notifies, in case admin calls manually.)
@@ -671,9 +656,7 @@ export const cancelMyQueue = async (queueId: string, customerId: string) => {
         .populate("customer", "name")
         .populate("agent");
 
-    const branchId = typeof queue.branch === "string" ? queue.branch : queue.branch._id.toString();
-    const deptId = typeof queue.department === "string" ? queue.department : queue.department._id.toString();
-    emitQueueUpdated(toQueueData(populated!), branchId, deptId);
+    emitQueueUpdated(toQueueData(populated!));
 
     // The cancelled spot frees up - everyone behind moves up.
     await emitDepartmentPositions(queue.department, queue.date);

@@ -252,7 +252,16 @@ const queueSlice = createSlice({
       })
       .addCase(addQueue.fulfilled, (state, action) => {
         state.saving = false;
-        state.queues.unshift(action.payload);
+        // The socket "queue:created" event (populated) may already have added
+        // this ticket, so replace it instead of adding a duplicate card.
+        const index = state.queues.findIndex(
+          (queue) => queue._id === action.payload._id
+        );
+        if (index !== -1) {
+          state.queues[index] = action.payload;
+        } else {
+          state.queues.unshift(action.payload);
+        }
       })
       .addCase(addQueue.rejected, (state, action) => {
         state.saving = false;
