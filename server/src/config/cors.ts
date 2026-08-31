@@ -7,7 +7,7 @@ const envOrigins = (process.env.CLIENT_URL ?? "")
 const allowedOrigins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://queueflow-dusky.vercel.app/",
+    "https://queueflow-dusky.vercel.app",
     ...envOrigins,
 ];
 
@@ -32,5 +32,6 @@ export const corsOptions = {
         callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE","OPTIONS"],
+     allowedHeaders: ["Content-Type", "Authorization"],
 };
