@@ -2,10 +2,7 @@ import "dotenv/config";
 import http from "http";
 import { setServers } from "dns";
 
-// Workaround for a flaky local DNS resolver: on some Windows machines Node's
-// default resolver is pointed at 127.0.0.1 and refuses SRV lookups, which makes
-// every mongodb+srv:// (Atlas) connection fail with "querySrv ECONNREFUSED".
-// Switch to a reliable public DNS so Atlas SRV resolution always works.
+// Set custom DNS servers to avoid potential issues with the default DNS resolution.
 try {
     setServers(["8.8.8.8", "1.1.1.1"]);
 } catch {
@@ -22,9 +19,7 @@ import type { ServerToClientEvents, ClientToServerEvents } from "./sockets/socke
 
 const PORT = process.env.PORT || 5000;
 
-// Periodically free agents that are stuck "busy" without an active ticket.
-// Runs on a fixed interval AND once right after the server starts so statuses
-// self-heal without anyone having to open the dashboard.
+// Interval for reconciling agent statuses in milliseconds (1 minute)
 const RECONCILE_INTERVAL_MS = 60_000;
 
 const startReconciliation = async () => {
@@ -35,15 +30,6 @@ const startReconciliation = async () => {
     }
 };
 
-connectDB()
-    .then(() => {
-        startReconciliation();
-        setInterval(startReconciliation, RECONCILE_INTERVAL_MS);
-    })
-    .catch(() => {
-        // DB connection error is handled/logged inside connectDB
-    });
-
 const httpServer = http.createServer(app);
 
 // Socket.IO server with CORS settings and typed events
@@ -51,9 +37,25 @@ export const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>
     cors: corsOptions,
 });
 
-setupSocketHandlers(io);
+const startServer = (): void => {
+    setupSocketHandlers(io);
 
-httpServer.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Socket.IO server is running`);
-});
+    httpServer.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        console.log(`Socket.IO server is running`);
+    });
+};
+
+connectDB()
+    .then(() => {
+        startReconciliation();
+        setInterval(startReconciliation, RECONCILE_INTERVAL_MS);
+        startServer();
+    })
+    .catch((error: unknown) => {
+        console.error(
+            "Failed to connect to MongoDB. Server will not start:",
+            error
+        );
+        process.exit(1);
+    });
